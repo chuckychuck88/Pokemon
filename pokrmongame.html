@@ -346,11 +346,14 @@ function loop(){
       ctx.beginPath();ctx.arc(b.x,b.y,8,0,Math.PI*2);ctx.fill();
     }
   }
+  // ====== BIGGER PLAYER ======
+  const playerSize=128;
   if(playerImg.complete)
-    ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
+    ctx.drawImage(playerImg,player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);
   else{
-    ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
+    ctx.fillStyle="yellow";ctx.fillRect(player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);
   }
+
   for(let i=popups.length-1;i>=0;i--){
     const p=popups[i];
     ctx.fillStyle=p.color;
