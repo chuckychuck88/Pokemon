@@ -1,168 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pokémon Survival Fixed</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pokémon Survival</title>
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: #000;
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:monospace;}
+  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+  #inventoryBox{
+    position:fixed;
+    right:20px;
+    top:20px;
+    background:rgba(80,50,20,0.9);
+    color:#fff;
+    padding:10px 16px;
+    border:2px solid #a87a3a;
+    border-radius:6px;
+    min-width:180px;
+    font-size:18px;
   }
-  canvas {
-    width: 100vw;
-    height: 100vh;
-    display: block;
-    image-rendering: pixelated;
+  #craftingUI{
+    position:fixed;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(50,30,10,0.95);
+    color:#fff;
+    border:2px solid #b8824d;
+    padding:20px;
+    border-radius:8px;
+    display:none;
   }
-  #inventoryBox {
-    position: fixed;
-    right: 20px;
-    top: 20px;
-    background: rgba(80, 50, 20, 0.9);
-    color: white;
-    padding: 10px 16px;
-    border: 2px solid #a87a3a;
-    border-radius: 6px;
-    min-width: 180px;
-    font-family: monospace;
+  #craftingUI button{
+    display:block;
+    margin:8px 0;
+    width:100%;
+    font-size:18px;
+    background:#c49752;
+    color:#fff;
+    border:none;
+    padding:8px;
+    border-radius:4px;
+    cursor:pointer;
   }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="inventoryBox"><b>Inventory</b><br><span id="inv"></span></div>
+
+<!-- ✅ Inventory box -->
+<div id="inventoryBox">
+  <b>Inventory</b>
+  <div id="invList">Wood (0)<br>Stone (0)</div>
+</div>
+
+<!-- ✅ Crafting UI -->
+<div id="craftingUI">
+  <h2>Crafting</h2>
+  <div id="craftList"></div>
+  <p style="color:gray;">Press [C] to close</p>
+</div>
 
 <script>
-window.onload = function () {
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    alert("Canvas context failed to load!");
-    return;
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d",{alpha:true});
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+resize();addEventListener("resize",resize);
+
+// ====== Assets ======
+const playerImg=new Image();playerImg.src="assets/player.png";
+const stoneImg=new Image();stoneImg.src="assets/stone.png";
+const berryImg=new Image();berryImg.src="assets/berry.png";
+
+// ====== Game Data ======
+const player={x:0,y:0,speed:4};
+let inventory={wood:0,stone:0,axe:false,pickaxe:false,berry:0};
+let equipped=null;
+let health=100;
+let hunger=100;
+const trees=[],stones=[],berries=[];
+
+// ====== Grass background ======
+const grass=document.createElement("canvas");
+grass.width=64;grass.height=64;
+const gctx=grass.getContext("2d");
+gctx.fillStyle="#3aa63f";gctx.fillRect(0,0,64,64);
+gctx.fillStyle="#2e8b34";
+for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
+const pattern=ctx.createPattern(grass,"repeat");
+
+// ====== Spawn objects ======
+for(let i=0;i<40;i++)
+  trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+for(let i=0;i<25;i++)
+  stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+// 🟣 Spawn berries NEAR player (so visible immediately)
+for(let i=0;i<20;i++)
+  berries.push({x:Math.random()*600-300,y:Math.random()*600-300,size:48});
+
+// ====== Controls ======
+const keys={};
+onkeydown=e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key.toLowerCase()==="c") toggleCrafting();
+  if(e.key.toLowerCase()==="e") eatBerry();
+  handleEquipKeys(e.key);
+};
+onkeyup=e=>keys[e.key.toLowerCase()]=false;
+canvas.addEventListener("click",handleClick);
+
+// ====== Equip Keys ======
+function handleEquipKeys(key){
+  if(key==="1" && inventory.axe){
+    if(equipped==="axe"){equipped=null;popup("Unequipped Axe",player.x,player.y,"#fff");}
+    else {equipped="axe";popup("Equipped Axe",player.x,player.y,"#ffc04c");}
+    updateInventoryBox();
   }
-
-  function resize() {
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+  if(key==="2" && inventory.pickaxe){
+    if(equipped==="pickaxe"){equipped=null;popup("Unequipped Pickaxe",player.x,player.y,"#fff");}
+    else {equipped="pickaxe";popup("Equipped Pickaxe",player.x,player.y,"#b0e0ff");}
+    updateInventoryBox();
   }
-  resize();
-  window.addEventListener("resize", resize);
+}
 
-  // Game data
-  const player = { x: 0, y: 0, speed: 4 };
-  const keys = {};
-  let inventory = { wood: 0, stone: 0, berry: 0 };
-  let hunger = 100;
-  let health = 100;
+// ====== Click to Break / Pick Berries ======
+function handleClick(e){
+  if(craftingOpen) return;
+  const mx=e.offsetX-canvas.width/2+player.x;
+  const my=e.offsetY-canvas.height/2+player.y;
 
-  const berries = [];
-  for (let i = 0; i < 20; i++)
-    berries.push({ x: Math.random() * 600 - 300, y: Math.random() * 600 - 300 });
-
-  const berryImg = new Image();
-  berryImg.src = "assets/berry.png";
-
-  window.addEventListener("keydown", (e) => (keys[e.key.toLowerCase()] = true));
-  window.addEventListener("keyup", (e) => (keys[e.key.toLowerCase()] = false));
-
-  canvas.addEventListener("click", (e) => {
-    const mx = e.offsetX - canvas.width / 2 + player.x;
-    const my = e.offsetY - canvas.height / 2 + player.y;
-    for (let i = berries.length - 1; i >= 0; i--) {
-      const b = berries[i];
-      const dist = Math.hypot(b.x - mx, b.y - my);
-      if (dist < 40) {
-        berries.splice(i, 1);
-        const amt = Math.floor(Math.random() * 2) + 1;
-        inventory.berry += amt;
-        popup("+ " + amt + " Berry", b.x, b.y, "#ff5050");
-      }
+  // 🍓 Berry pickup
+  for(let i=berries.length-1;i>=0;i--){
+    const b=berries[i];
+    const dist=Math.hypot(b.x-mx,b.y-my);
+    if(dist<40){
+      berries.splice(i,1);
+      const amt=Math.floor(Math.random()*2)+1;
+      inventory.berry+=amt;
+      popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c");
+      updateInventoryBox();
+      return;
     }
+  }
+
+  // Trees / Stones
+  let target=null;
+  [...trees,...stones].forEach(obj=>{
+    const dist=Math.hypot(obj.x-mx,obj.y-my);
+    if(dist<60 && !target) target=obj;
   });
 
-  // popups
-  const popups = [];
-  function popup(txt, x, y, color) {
-    popups.push({ txt, x, y, color, life: 60 });
-  }
+  if(target){
+    target.breaking=true;
+    let breakSpeed=300;
+    if(equipped==="axe" && trees.includes(target)) breakSpeed=150;
+    if(equipped==="pickaxe" && stones.includes(target)) breakSpeed=150;
 
-  // Hunger decay
-  setInterval(() => {
-    hunger = Math.max(0, hunger - 0.05);
-    if (hunger <= 0) health = Math.max(0, health - 0.1);
-  }, 100);
-
-  function updateInventory() {
-    const inv = document.getElementById("inv");
-    inv.innerHTML = `Wood (${inventory.wood})<br>Stone (${inventory.stone})<br>Berry (${inventory.berry})`;
-  }
-
-  function drawBars() {
-    ctx.fillStyle = "#000";
-    ctx.fillRect(18, 18, 154, 20);
-    ctx.fillStyle = "#a00";
-    ctx.fillRect(20, 20, 150 * (health / 100), 16);
-    ctx.fillStyle = "#fff";
-    ctx.font = "14px monospace";
-    ctx.fillText("HP", 75, 32);
-
-    ctx.fillStyle = "#000";
-    ctx.fillRect(18, 44, 154, 20);
-    ctx.fillStyle = "#e1b44c";
-    ctx.fillRect(20, 46, 150 * (hunger / 100), 16);
-    ctx.fillStyle = "#fff";
-    ctx.fillText("Hunger", 55, 58);
-  }
-
-  function loop() {
-    let dx = 0,
-      dy = 0;
-    if (keys["w"]) dy -= player.speed;
-    if (keys["s"]) dy += player.speed;
-    if (keys["a"]) dx -= player.speed;
-    if (keys["d"]) dx += player.speed;
-    player.x += dx;
-    player.y += dy;
-
-    ctx.fillStyle = "#3aa63f";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
-
-    for (const b of berries) {
-      if (berryImg.complete)
-        ctx.drawImage(berryImg, b.x - 16, b.y - 16, 32, 32);
-      else {
-        ctx.fillStyle = "red";
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
-        ctx.fill();
+    setTimeout(()=>{
+      target.health--;
+      if(target.health<=0){
+        if(trees.includes(target)){
+          trees.splice(trees.indexOf(target),1);
+          const amt=Math.floor(Math.random()*2)+2;
+          inventory.wood+=amt;
+          popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
+        }else if(stones.includes(target)){
+          stones.splice(stones.indexOf(target),1);
+          const amt=Math.floor(Math.random()*2)+2;
+          inventory.stone+=amt;
+          popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
+        }
+        updateInventoryBox();
       }
-    }
-
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(player.x - 20, player.y - 20, 40, 40);
-
-    for (let i = popups.length - 1; i >= 0; i--) {
-      const p = popups[i];
-      ctx.fillStyle = p.color;
-      ctx.fillText(p.txt, p.x, p.y - p.life / 2);
-      p.life--;
-      if (p.life <= 0) popups.splice(i, 1);
-    }
-
-    ctx.restore();
-    drawBars();
-    updateInventory();
-
-    requestAnimationFrame(loop);
+      target.breaking=false;
+    },breakSpeed);
   }
-  loop();
-};
+}
+
+// ====== Eat Berry ======
+function eatBerry(){
+  if(inventory.berry>0){
+    inventory.berry--;
+    hunger=Math.min(100,hunger+20);
+    health=Math.min(100,health+10);
+    popup("You ate a berry!",player.x,player.y,"#ff5c5c");
+    updateInventoryBox();
+  }else popup("No berries!",player.x,player.y,"#ccc");
+}
+
+// ====== Popup System ======
+const popups=[];
+function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
+
+// ====== Draw Tree ======
+function drawTree(g,x,y,size,breaking){
+  g.save();
+  if(breaking) g.translate(x+Math.random()*4-2,y+Math.random()*4-2);
+  else g.translate(x,y);
+  g.fillStyle="#5c3b1e";g.fillRect(size/2-5,size-18,10,18);
+  for(let i=0;i<3;i++){
+    const baseY=size/2-i*12;
+    const shade=i===0?"#4cd155":i===1?"#38b044":"#2a8b34";
+    g.fillStyle=shade;
+    g.beginPath();
+    g.moveTo(0,baseY);
+    g.lineTo(size,baseY);
+    g.lineTo(size/2,baseY-14);
+    g.closePath();g.fill();
+  }
+  g.restore();
+}
+
+// ====== Crafting ======
+let craftingOpen=false;
+const craftingUI=document.getElementById("craftingUI");
+const craftList=document.getElementById("craftList");
+const recipes=[
+  {name:"Axe",requires:{wood:3,stone:2},gives:"axe"},
+  {name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}
+];
+function toggleCrafting(){
+  craftingOpen=!craftingOpen;
+  craftingUI.style.display=craftingOpen?"block":"none";
+  if(craftingOpen) buildCraftingList();
+}
+function buildCraftingList(){
+  craftList.innerHTML="";
+  recipes.forEach(r=>{
+    const btn=document.createElement("button");
+    btn.textContent=`Craft ${r.name} (${r.requires.wood} wood, ${r.requires.stone} stone)`;
+    btn.onclick=()=>{
+      if(inventory.wood>=r.requires.wood&&inventory.stone>=r.requires.stone){
+        inventory.wood-=r.requires.wood;
+        inventory.stone-=r.requires.stone;
+        inventory[r.gives]=true;
+        popup(`Crafted ${r.name}!`,player.x,player.y,"#ffb000");
+        updateInventoryBox();
+        toggleCrafting();
+      }else alert("Not enough materials!");
+    };
+    craftList.appendChild(btn);
+  });
+}
+
+// ====== Inventory Text ======
+function updateInventoryBox(){
+  const invList=document.getElementById("invList");
+  invList.innerHTML="";
+  const items=[];
+  items.push(`Wood (${inventory.wood})`);
+  items.push(`Stone (${inventory.stone})`);
+  if(inventory.axe) items.push(`Axe ${equipped==="axe"?"(Equipped)":"(Crafted)"}`);
+  if(inventory.pickaxe) items.push(`Pickaxe ${equipped==="pickaxe"?"(Equipped)":"(Crafted)"}`);
+  if(inventory.berry) items.push(`Berry (${inventory.berry})`);
+  invList.innerHTML=items.join("<br>");
+}
+
+// ====== Hunger / Health Drain ======
+setInterval(()=>{
+  hunger=Math.max(0,hunger-0.05);
+  if(hunger<=0) health=Math.max(0,health-0.1);
+},100);
+
+// ====== Draw Bars ======
+function drawBars(){
+  const barW=150,barH=16;
+  const x=20,y=20;
+  ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4);
+  ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH);
+  ctx.fillStyle="#fff";ctx.font="14px monospace";
+  ctx.fillText("Health",x+40,y+13);
+  const hy=y+24;
+  ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4);
+  ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH);
+  ctx.fillStyle="#fff";ctx.fillText("Hunger",x+36,hy+13);
+}
+
+// ====== Game Loop ======
+function loop(){
+  if(!craftingOpen){
+    let dx=0,dy=0;
+    if(keys["w"]||keys["arrowup"])dy-=player.speed;
+    if(keys["s"]||keys["arrowdown"])dy+=player.speed;
+    if(keys["a"]||keys["arrowleft"])dx-=player.speed;
+    if(keys["d"]||keys["arrowright"])dx+=player.speed;
+    player.x+=dx;player.y+=dy;
+  }
+
+  ctx.fillStyle=pattern;
+  ctx.save();
+  ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
+  ctx.fillRect(player.x-canvas.width,player.y-canvas.height,canvas.width*2,canvas.height*2);
+  ctx.imageSmoothingEnabled=false;
+
+  for(const t of trees) drawTree(ctx,t.x-32,t.y-64,t.size,t.breaking);
+  for(const s of stones){
+    ctx.save();
+    if(s.breaking) ctx.translate(s.x+Math.random()*4-2,s.y+Math.random()*4-2);
+    else ctx.translate(s.x,s.y);
+    if(stoneImg.complete) ctx.drawImage(stoneImg,-s.size/2,-s.size/2,s.size,s.size);
+    ctx.restore();
+  }
+  for(const b of berries){
+    if(berryImg.complete)
+      ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);
+    else{
+      ctx.fillStyle="red";
+      ctx.beginPath();ctx.arc(b.x,b.y,8,0,Math.PI*2);ctx.fill();
+    }
+  }
+  if(playerImg.complete)
+    ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
+  else{
+    ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
+  }
+  for(let i=popups.length-1;i>=0;i--){
+    const p=popups[i];
+    ctx.fillStyle=p.color;
+    ctx.font="20px monospace";
+    ctx.fillText(p.txt,p.x,p.y-p.life/2);
+    p.life--;if(p.life<=0)popups.splice(i,1);
+  }
+  ctx.restore();
+  drawBars();
+  requestAnimationFrame(loop);
+}
+loop();
 </script>
 </body>
 </html>
