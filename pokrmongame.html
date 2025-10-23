@@ -1,4 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pokémon Survival + Crafting (Fixed)</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;}
+  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+  #craftingUI{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#222;border:3px solid #fff;padding:20px;border-radius:10px;
+    display:none;color:white;font-family:monospace;text-align:center;
+  }
+  .craft-item{
+    margin:10px;padding:10px;border:2px solid #888;background:#333;cursor:pointer;
+  }
+  .craft-item:hover{background:#444;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="craftingUI">
+  <h2>Crafting</h2>
+  <div id="craftList"></div>
+  <p style="color:gray;">Press [C] to close</p>
+</div>
+
 <script>
+// ====== Canvas Setup ======
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d",{alpha:true});
 function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
@@ -26,7 +55,7 @@ gctx.fillStyle="#2e8b34";
 for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
 const pattern=ctx.createPattern(grass,"repeat");
 
-// ====== Object Generation ======
+// ====== Generate World Objects ======
 for(let i=0;i<40;i++)trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
 for(let i=0;i<25;i++)stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
 
@@ -42,11 +71,11 @@ canvas.addEventListener("click",handleClick);
 // ====== Crafting System ======
 const craftingUI=document.getElementById("craftingUI");
 const craftList=document.getElementById("craftList");
+let craftingOpen=false;
 const recipes=[
   {name:"Axe",req:{wood:3,stone:2},item:"axe"},
   {name:"Pickaxe",req:{wood:2,stone:3},item:"pickaxe"}
 ];
-let craftingOpen=false;
 
 function toggleCrafting(){
   craftingOpen=!craftingOpen;
@@ -76,15 +105,14 @@ function craftItem(recipe){
     inventory.stone-=recipe.req.stone;
     inventory[recipe.item]=true;
     popup(`Crafted ${recipe.name}!`,player.x,player.y,"#ffd700");
-    renderCrafting();
   }else{
-    popup(`Not enough materials!`,player.x,player.y,"#ff4040");
+    popup("Not enough materials!",player.x,player.y,"#ff4040");
   }
 }
 
-// ====== Click to Break ======
+// ====== Breaking Trees & Stones ======
 function handleClick(e){
-  if(craftingOpen) return; // disable breaking while crafting
+  if(craftingOpen) return; // Can't break while crafting
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
   let target=null;
@@ -121,9 +149,7 @@ function handleClick(e){
 
 // ====== Pop-up Text ======
 const popups=[];
-function popup(txt,x,y,color){
-  popups.push({txt,x,y,color,life:60});
-}
+function popup(txt,x,y,color){ popups.push({txt,x,y,color,life:60}); }
 
 // ====== Draw Tree ======
 function drawTree(g,x,y,size,breaking){
@@ -146,14 +172,13 @@ function drawTree(g,x,y,size,breaking){
 
 // ====== Game Loop ======
 function loop(){
-  if(!craftingOpen){ // Pause movement when crafting menu open
-    let dx=0,dy=0;
-    if(keys["w"]||keys["arrowup"])dy-=player.speed;
-    if(keys["s"]||keys["arrowdown"])dy+=player.speed;
-    if(keys["a"]||keys["arrowleft"])dx-=player.speed;
-    if(keys["d"]||keys["arrowright"])dx+=player.speed;
-    player.x+=dx;player.y+=dy;
-  }
+  // ✅ You can always move, even after crafting
+  let dx=0,dy=0;
+  if(keys["w"]||keys["arrowup"])dy-=player.speed;
+  if(keys["s"]||keys["arrowdown"])dy+=player.speed;
+  if(keys["a"]||keys["arrowleft"])dx-=player.speed;
+  if(keys["d"]||keys["arrowright"])dx+=player.speed;
+  player.x+=dx;player.y+=dy;
 
   ctx.fillStyle=pattern;
   ctx.save();
@@ -170,12 +195,11 @@ function loop(){
     ctx.restore();
   }
 
-  if(playerImg.complete)
-    ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
-  else{
-    ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
-  }
+  // Player
+  if(playerImg.complete) ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
+  else{ ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48); }
 
+  // Popups
   for(let i=popups.length-1;i>=0;i--){
     const p=popups[i];
     ctx.fillStyle=p.color;
@@ -190,7 +214,7 @@ function loop(){
 }
 loop();
 
-// ====== Draw Simple Inventory ======
+// ====== Draw Inventory ======
 function drawSimpleInventory(){
   const baseX=20, baseY=20;
   ctx.save();
@@ -206,3 +230,5 @@ function drawSimpleInventory(){
   ctx.restore();
 }
 </script>
+</body>
+</html>
