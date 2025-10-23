@@ -7,51 +7,27 @@
 <style>
 html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:monospace;}
 canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
-#inventoryBox{
-  position:fixed;right:20px;top:20px;background:rgba(80,50,20,0.9);color:#fff;
-  padding:10px 16px;border:2px solid #a87a3a;border-radius:6px;min-width:180px;font-size:18px;
-}
-#craftingUI{
-  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:rgba(50,30,10,0.95);color:#fff;border:2px solid #b8824d;
-  padding:20px;border-radius:8px;display:none;
-}
-#craftingUI button{
-  display:block;margin:8px 0;width:100%;font-size:18px;background:#c49752;
-  color:#fff;border:none;padding:8px;border-radius:4px;cursor:pointer;
-}
+#inventoryBox{position:fixed;right:20px;top:20px;background:rgba(80,50,20,0.9);color:#fff;padding:10px 16px;border:2px solid #a87a3a;border-radius:6px;min-width:180px;font-size:18px;}
+#craftingUI{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(50,30,10,0.95);color:#fff;border:2px solid #b8824d;padding:20px;border-radius:8px;display:none;}
+#craftingUI button{display:block;margin:8px 0;width:100%;font-size:18px;background:#c49752;color:#fff;border:none;padding:8px;border-radius:4px;cursor:pointer;}
 #mobileControls{position:fixed;bottom:20px;width:100%;height:120px;pointer-events:none;}
-#joystickBase{
-  position:absolute;left:20px;bottom:20px;width:100px;height:100px;border-radius:50%;
-  background:rgba(100,100,100,0.3);touch-action:none;pointer-events:auto;
-}
-#joystickKnob{
-  width:50px;height:50px;background:rgba(200,200,200,0.6);border-radius:50%;
-  position:absolute;top:25px;left:25px;
-}
-#mobileButtons{
-  position:absolute;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;
-}
-#mobileButtons button{
-  font-size:18px;padding:10px;background:#c49752;color:#fff;border:none;border-radius:6px;cursor:pointer;
-}
+#joystickBase{position:absolute;left:20px;bottom:20px;width:100px;height:100px;border-radius:50%;background:rgba(100,100,100,0.3);touch-action:none;pointer-events:auto;}
+#joystickKnob{width:50px;height:50px;background:rgba(200,200,200,0.6);border-radius:50%;position:absolute;top:25px;left:25px;}
+#mobileButtons{position:absolute;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;}
+#mobileButtons button{font-size:18px;padding:10px;background:#c49752;color:#fff;border:none;border-radius:6px;cursor:pointer;}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-
 <div id="inventoryBox">
   <b>Inventory</b>
   <div id="invList">Wood (0)<br>Stone (0)</div>
 </div>
-
 <div id="craftingUI">
   <h2>Crafting</h2>
   <div id="craftList"></div>
   <p style="color:gray;">Press [C] to close</p>
 </div>
-
-<!-- Mobile Controls -->
 <div id="mobileControls">
   <div id="joystickBase"><div id="joystickKnob"></div></div>
   <div id="mobileButtons">
@@ -69,14 +45,10 @@ function resize(){canvas.width = innerWidth; canvas.height = innerHeight;}
 resize(); addEventListener("resize", resize);
 
 // ===== Assets =====
-const playerImg = new Image();
-playerImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/player.png";
-
-const stoneImg = new Image();
-stoneImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/stone.png";
-
-const berryImg = new Image();
-berryImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/berry.png";
+const playerImg = new Image(); playerImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/player.png";
+const stoneImg = new Image(); stoneImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/stone.png";
+const berryImg = new Image(); berryImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/berry.png";
+const treeImg = new Image(); treeImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/tree.png";
 
 // ===== Player & Inventory =====
 const player = {x:0,y:0,speed:4};
@@ -88,9 +60,9 @@ let health = 100, hunger = 100;
 let trees=[], stones=[], berries=[];
 function spawnNearbyResources(){
   const radius=800;
-  while(trees.length<30){trees.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:64,health:3,breaking:false});}
+  while(trees.length<30){trees.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:128,health:3,breaking:false});}
   while(stones.length<20){stones.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:64,health:3,breaking:false});}
-  while(berries.length<15){berries.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:32});}
+  while(berries.length<15){berries.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:48});}
   trees = trees.filter(t=>Math.hypot(t.x-player.x,t.y-player.y)<1000);
   stones = stones.filter(s=>Math.hypot(s.x-player.x,s.y-player.y)<1000);
   berries = berries.filter(b=>Math.hypot(b.x-player.x,b.y-player.y)<1000);
@@ -115,10 +87,10 @@ function handleClick(e){
   const rect = canvas.getBoundingClientRect();
   const mx = (e.clientX||e.touches[0].clientX)-rect.left-canvas.width/2+player.x;
   const my = (e.clientY||e.touches[0].clientY)-rect.top-canvas.height/2+player.y;
-  
+
   // Pick berries
   for(let i=berries.length-1;i>=0;i--){const b=berries[i]; if(Math.hypot(b.x-mx,b.y-my)<20){berries.splice(i,1); const amt=Math.floor(Math.random()*2)+1; inventory.berry+=amt; popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c"); updateInventoryBox(); return;}}
-  
+
   // Trees/Stones
   let target=null; [...trees,...stones].forEach(obj=>{const dist=Math.hypot(obj.x-mx,obj.y-my); if(dist<40&&!target) target=obj;});
   if(target){
@@ -143,16 +115,6 @@ function eatBerry(){if(inventory.berry>0){inventory.berry--;hunger=Math.min(100,
 // ===== Popups =====
 const popups=[];
 function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
-
-// ===== Draw Tree =====
-function drawTree(g,x,y,size,breaking){
-  g.save();
-  if(breaking) g.translate(x+Math.random()*4-2,y+Math.random()*4-2);
-  else g.translate(x,y);
-  g.fillStyle="#5c3b1e";g.fillRect(-5,0,10,18);
-  g.fillStyle="#2a8b34";g.beginPath();g.moveTo(0,-size/2);g.lineTo(size/2,-size);g.lineTo(size,-size/2);g.closePath();g.fill();
-  g.restore();
-}
 
 // ===== Crafting =====
 let craftingOpen=false;
@@ -196,25 +158,21 @@ function loop(){
   }
   spawnNearbyResources();
 
-  // Draw background
-  ctx.fillStyle="#3aa63f";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
+  ctx.fillStyle="#3aa63f"; ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.save(); ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
 
   // Draw resources
-  for(const t of trees) drawTree(ctx,t.x,t.y,t.size,t.breaking);
-  for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-16,s.y-16,32,32); else{ctx.fillStyle="gray"; ctx.fillRect(s.x-16,s.y-16,32,32);}}
-  for(const b of berries){if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size); else {ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(b.x,b.y,8,0,Math.PI*2); ctx.fill();}}
+  for(const t of trees){if(treeImg.complete) ctx.drawImage(treeImg,t.x-64,t.y-64,128,128);}
+  for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-32,s.y-32,64,64);}
+  for(const b of berries){if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);}
 
   // Draw player
-  if(playerImg.complete) ctx.drawImage(playerImg,player.x-32,player.y-32,64,64); else ctx.fillStyle="yellow"; ctx.fillRect(player.x-32,player.y-32,64,64);
+  if(playerImg.complete) ctx.drawImage(playerImg,player.x-64,player.y-64,128,128);
 
   // Popups
   for(let i=popups.length-1;i>=0;i--){const p=popups[i];ctx.fillStyle=p.color;ctx.font="20px monospace";ctx.fillText(p.txt,p.x,p.y-p.life/2);p.life--; if(p.life<=0) popups.splice(i,1);}
 
-  ctx.restore();
-  drawBars();
+  ctx.restore(); drawBars();
   requestAnimationFrame(loop);
 }
 loop();
