@@ -68,6 +68,16 @@ const ctx = canvas.getContext("2d");
 function resize(){canvas.width = innerWidth; canvas.height = innerHeight;}
 resize(); addEventListener("resize", resize);
 
+// ===== Assets =====
+const playerImg = new Image();
+playerImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/player.png";
+
+const stoneImg = new Image();
+stoneImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/stone.png";
+
+const berryImg = new Image();
+berryImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/berry.png";
+
 // ===== Player & Inventory =====
 const player = {x:0,y:0,speed:4};
 let inventory = {wood:0,stone:0,axe:false,axeDurability:0,pickaxe:false,pickaxeDurability:0,berry:0};
@@ -194,11 +204,11 @@ function loop(){
 
   // Draw resources
   for(const t of trees) drawTree(ctx,t.x,t.y,t.size,t.breaking);
-  for(const s of stones){ctx.fillStyle="gray"; ctx.fillRect(s.x-16,s.y-16,32,32);}
-  for(const b of berries){ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(b.x,b.y,8,0,Math.PI*2); ctx.fill();}
+  for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-16,s.y-16,32,32); else{ctx.fillStyle="gray"; ctx.fillRect(s.x-16,s.y-16,32,32);}}
+  for(const b of berries){if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size); else {ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(b.x,b.y,8,0,Math.PI*2); ctx.fill();}}
 
   // Draw player
-  ctx.fillStyle="yellow"; ctx.fillRect(player.x-16,player.y-16,32,32);
+  if(playerImg.complete) ctx.drawImage(playerImg,player.x-32,player.y-32,64,64); else ctx.fillStyle="yellow"; ctx.fillRect(player.x-32,player.y-32,64,64);
 
   // Popups
   for(let i=popups.length-1;i>=0;i--){const p=popups[i];ctx.fillStyle=p.color;ctx.font="20px monospace";ctx.fillText(p.txt,p.x,p.y-p.life/2);p.life--; if(p.life<=0) popups.splice(i,1);}
