@@ -1,30 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pokémon Survival + Crafting</title>
-<style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#000;}
-  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
-  #craftingUI{
-    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    background:#222;border:3px solid #fff;padding:20px;border-radius:10px;
-    display:none;color:white;font-family:monospace;
-  }
-  .craft-item{
-    margin:10px;padding:10px;border:2px solid #888;background:#333;cursor:pointer;
-  }
-  .craft-item:hover{background:#444;}
-</style>
-</head>
-<body>
-<canvas id="game"></canvas>
-<div id="craftingUI">
-  <h2>Crafting</h2>
-  <div id="craftList"></div>
-  <p style="color:gray;">Press [C] to close</p>
-</div>
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d",{alpha:true});
@@ -73,10 +46,12 @@ const recipes=[
   {name:"Axe",req:{wood:3,stone:2},item:"axe"},
   {name:"Pickaxe",req:{wood:2,stone:3},item:"pickaxe"}
 ];
+let craftingOpen=false;
 
 function toggleCrafting(){
-  craftingUI.style.display=(craftingUI.style.display==="none"||craftingUI.style.display==="")?"block":"none";
-  renderCrafting();
+  craftingOpen=!craftingOpen;
+  craftingUI.style.display=craftingOpen?"block":"none";
+  if(craftingOpen) renderCrafting();
 }
 
 function renderCrafting(){
@@ -92,7 +67,7 @@ function renderCrafting(){
 
 function craftItem(recipe){
   if(inventory[recipe.item]){
-    alert(`${recipe.name} already crafted!`);
+    popup(`${recipe.name} already crafted!`,player.x,player.y,"#ccc");
     return;
   }
   const canCraft=inventory.wood>=recipe.req.wood && inventory.stone>=recipe.req.stone;
@@ -103,12 +78,13 @@ function craftItem(recipe){
     popup(`Crafted ${recipe.name}!`,player.x,player.y,"#ffd700");
     renderCrafting();
   }else{
-    alert("Not enough materials!");
+    popup(`Not enough materials!`,player.x,player.y,"#ff4040");
   }
 }
 
 // ====== Click to Break ======
 function handleClick(e){
+  if(craftingOpen) return; // disable breaking while crafting
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
   let target=null;
@@ -119,9 +95,9 @@ function handleClick(e){
 
   if(target){
     target.breaking=true;
-    let delay=250; // base break time
-    if(trees.includes(target)&&inventory.axe) delay=120; // faster with axe
-    if(stones.includes(target)&&inventory.pickaxe) delay=120; // faster with pickaxe
+    let delay=250;
+    if(trees.includes(target)&&inventory.axe) delay=120;
+    if(stones.includes(target)&&inventory.pickaxe) delay=120;
 
     setTimeout(()=>{
       target.health--;
@@ -170,12 +146,14 @@ function drawTree(g,x,y,size,breaking){
 
 // ====== Game Loop ======
 function loop(){
-  let dx=0,dy=0;
-  if(keys["w"]||keys["arrowup"])dy-=player.speed;
-  if(keys["s"]||keys["arrowdown"])dy+=player.speed;
-  if(keys["a"]||keys["arrowleft"])dx-=player.speed;
-  if(keys["d"]||keys["arrowright"])dx+=player.speed;
-  player.x+=dx;player.y+=dy;
+  if(!craftingOpen){ // Pause movement when crafting menu open
+    let dx=0,dy=0;
+    if(keys["w"]||keys["arrowup"])dy-=player.speed;
+    if(keys["s"]||keys["arrowdown"])dy+=player.speed;
+    if(keys["a"]||keys["arrowleft"])dx-=player.speed;
+    if(keys["d"]||keys["arrowright"])dx+=player.speed;
+    player.x+=dx;player.y+=dy;
+  }
 
   ctx.fillStyle=pattern;
   ctx.save();
@@ -207,7 +185,6 @@ function loop(){
   }
 
   ctx.restore();
-
   drawSimpleInventory();
   requestAnimationFrame(loop);
 }
@@ -215,21 +192,17 @@ loop();
 
 // ====== Draw Simple Inventory ======
 function drawSimpleInventory(){
-  const baseX = 20;
-  const baseY = 20;
+  const baseX=20, baseY=20;
   ctx.save();
   ctx.globalAlpha=1;
   if(iconWood.complete) ctx.drawImage(iconWood, baseX, baseY, 48, 48);
   ctx.fillStyle="#fff";ctx.font="22px monospace";
-  ctx.fillText(inventory.wood, baseX + 60, baseY + 30);
-  if(iconStone.complete) ctx.drawImage(iconStone, baseX + 120, baseY, 48, 48);
-  ctx.fillText(inventory.stone, baseX + 180, baseY + 30);
-  // Draw crafted tools
+  ctx.fillText(inventory.wood, baseX+60, baseY+30);
+  if(iconStone.complete) ctx.drawImage(iconStone, baseX+120, baseY, 48, 48);
+  ctx.fillText(inventory.stone, baseX+180, baseY+30);
   let offset=240;
   if(inventory.axe){ if(iconAxe.complete) ctx.drawImage(iconAxe, baseX+offset, baseY, 48, 48); offset+=60; }
   if(inventory.pickaxe){ if(iconPickaxe.complete) ctx.drawImage(iconPickaxe, baseX+offset, baseY, 48, 48); offset+=60; }
   ctx.restore();
 }
 </script>
-</body>
-</html>
