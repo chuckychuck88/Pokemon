@@ -42,6 +42,19 @@ canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:c
   border-radius:4px;
   cursor:pointer;
 }
+#mobileControls{position:fixed;bottom:20px;width:100%;height:120px;pointer-events:none;}
+#joystickBase{
+  position:absolute;left:20px;bottom:20px;width:100px;height:100px;border-radius:50%;background:rgba(100,100,100,0.3);touch-action:none;
+}
+#joystickKnob{
+  width:50px;height:50px;background:rgba(200,200,200,0.6);border-radius:50%;position:absolute;top:25px;left:25px;
+}
+#mobileButtons{
+  position:absolute;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;
+}
+#mobileButtons button{
+  font-size:18px;padding:10px;background:#c49752;color:#fff;border:none;border-radius:6px;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -58,6 +71,19 @@ canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:c
   <p style="color:gray;">Press [C] to close</p>
 </div>
 
+<!-- Mobile Controls -->
+<div id="mobileControls">
+  <div id="joystickBase">
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="mobileButtons">
+    <button onclick="toggleCrafting()">Craft</button>
+    <button onclick="eatBerry()">Eat Berry</button>
+    <button onclick="handleEquipKeys('1')">Equip Axe</button>
+    <button onclick="handleEquipKeys('2')">Equip Pickaxe</button>
+  </div>
+</div>
+
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d",{alpha:true});
@@ -71,18 +97,9 @@ const berryImg=new Image();berryImg.src="assets/berry.png";
 
 // ====== Player & Inventory ======
 const player={x:0,y:0,speed:4};
-let inventory={
-  wood:0,
-  stone:0,
-  axe:false,
-  axeDurability:0,
-  pickaxe:false,
-  pickaxeDurability:0,
-  berry:0
-};
+let inventory={wood:0,stone:0,axe:false,axeDurability:0,pickaxe:false,pickaxeDurability:0,berry:0};
 let equipped=null;
-let health=100;
-let hunger=100;
+let health=100,hunger=100;
 
 // ====== Dynamic Resources ======
 let trees=[], stones=[], berries=[];
@@ -104,8 +121,6 @@ function spawnNearbyResources(){
     const y=player.y+(Math.random()*radius*2-radius);
     berries.push({x,y,size:48});
   }
-
-  // Remove far-away objects
   trees=trees.filter(t=>Math.hypot(t.x-player.x,t.y-player.y)<1000);
   stones=stones.filter(s=>Math.hypot(s.x-player.x,s.y-player.y)<1000);
   berries=berries.filter(b=>Math.hypot(b.x-player.x,b.y-player.y)<1000);
@@ -145,13 +160,12 @@ function handleEquipKeys(key){
   }
 }
 
-// ====== Click to Break / Pick Berries ======
+// ====== Click / Touch to Break / Pick Berries ======
 function handleClick(e){
   if(craftingOpen) return;
-  const mx=e.offsetX-canvas.width/2+player.x;
-  const my=e.offsetY-canvas.height/2+player.y;
+  const mx = (e.offsetX !== undefined ? e.offsetX : e.touches[0].clientX) - canvas.width/2 + player.x;
+  const my = (e.offsetY !== undefined ? e.offsetY : e.touches[0].clientY) - canvas.height/2 + player.y;
 
-  // Berry pickup
   for(let i=berries.length-1;i>=0;i--){
     const b=berries[i];
     if(Math.hypot(b.x-mx,b.y-my)<40){
@@ -163,8 +177,6 @@ function handleClick(e){
       return;
     }
   }
-
-  // Trees / Stones
   let target=null;
   [...trees,...stones].forEach(obj=>{
     const dist=Math.hypot(obj.x-mx,obj.y-my);
@@ -183,25 +195,13 @@ function handleClick(e){
         if(trees.includes(target)){
           trees.splice(trees.indexOf(target),1);
           let amt=Math.floor(Math.random()*2)+2;
-          if(equipped==="axe"){
-            if(Math.random()<0.3) amt+=1;
-            if(Math.random()<0.1) amt+=2;
-            inventory.axeDurability--;
-            if(inventory.axeDurability<=0){inventory.axe=false;equipped=null;popup("Your Axe broke!",player.x,player.y,"#fff");}
-          }
-          inventory.wood+=amt;
-          popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
+          if(equipped==="axe"){if(Math.random()<0.3) amt+=1; if(Math.random()<0.1) amt+=2; inventory.axeDurability--; if(inventory.axeDurability<=0){inventory.axe=false;equipped=null;popup("Your Axe broke!",player.x,player.y,"#fff");}}
+          inventory.wood+=amt; popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
         }else if(stones.includes(target)){
           stones.splice(stones.indexOf(target),1);
           let amt=Math.floor(Math.random()*2)+2;
-          if(equipped==="pickaxe"){
-            if(Math.random()<0.3) amt+=1;
-            if(Math.random()<0.1) amt+=2;
-            inventory.pickaxeDurability--;
-            if(inventory.pickaxeDurability<=0){inventory.pickaxe=false;equipped=null;popup("Your Pickaxe broke!",player.x,player.y,"#fff");}
-          }
-          inventory.stone+=amt;
-          popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
+          if(equipped==="pickaxe"){if(Math.random()<0.3) amt+=1; if(Math.random()<0.1) amt+=2; inventory.pickaxeDurability--; if(inventory.pickaxeDurability<=0){inventory.pickaxe=false;equipped=null;popup("Your Pickaxe broke!",player.x,player.y,"#fff");}}
+          inventory.stone+=amt; popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
         }
         updateInventoryBox();
       }
@@ -209,6 +209,8 @@ function handleClick(e){
     },breakSpeed);
   }
 }
+canvas.addEventListener('touchstart',handleClick);
+canvas.addEventListener('touchmove',e=>{if(e.target===canvas) e.preventDefault();},{passive:false});
 
 // ====== Eat Berry ======
 function eatBerry(){
@@ -234,12 +236,7 @@ function drawTree(g,x,y,size,breaking){
   for(let i=0;i<3;i++){
     const baseY=size/2-i*12;
     const shade=i===0?"#4cd155":i===1?"#38b044":"#2a8b34";
-    g.fillStyle=shade;
-    g.beginPath();
-    g.moveTo(0,baseY);
-    g.lineTo(size,baseY);
-    g.lineTo(size/2,baseY-14);
-    g.closePath();g.fill();
+    g.fillStyle=shade; g.beginPath(); g.moveTo(0,baseY); g.lineTo(size,baseY); g.lineTo(size/2,baseY-14); g.closePath(); g.fill();
   }
   g.restore();
 }
@@ -248,10 +245,7 @@ function drawTree(g,x,y,size,breaking){
 let craftingOpen=false;
 const craftingUI=document.getElementById("craftingUI");
 const craftList=document.getElementById("craftList");
-const recipes=[
-  {name:"Axe",requires:{wood:3,stone:2},gives:"axe"},
-  {name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}
-];
+const recipes=[{name:"Axe",requires:{wood:3,stone:2},gives:"axe"},{name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}];
 function toggleCrafting(){
   craftingOpen=!craftingOpen;
   craftingUI.style.display=craftingOpen?"block":"none";
@@ -281,7 +275,6 @@ function buildCraftingList(){
 // ====== Inventory Text ======
 function updateInventoryBox(){
   const invList=document.getElementById("invList");
-  invList.innerHTML="";
   const items=[];
   items.push(`Wood (${inventory.wood})`);
   items.push(`Stone (${inventory.stone})`);
@@ -292,34 +285,53 @@ function updateInventoryBox(){
 }
 
 // ====== Hunger / Health Drain ======
-setInterval(()=>{
-  hunger=Math.max(0,hunger-0.05);
-  if(hunger<=0) health=Math.max(0,health-0.1);
-},100);
+setInterval(()=>{hunger=Math.max(0,hunger-0.05); if(hunger<=0) health=Math.max(0,health-0.1);},100);
 
 // ====== Draw Bars ======
 function drawBars(){
-  const barW=150,barH=16;
-  const x=20,y=20;
-  ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4);
-  ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH);
-  ctx.fillStyle="#fff";ctx.font="14px monospace";
-  ctx.fillText("Health",x+40,y+13);
+  const barW=150,barH=16,x=20,y=20;
+  ctx.fillStyle="#000"; ctx.fillRect(x-2,y-2,barW+4,barH+4);
+  ctx.fillStyle="#a00"; ctx.fillRect(x,y,barW*(health/100),barH);
+  ctx.fillStyle="#fff"; ctx.font="14px monospace"; ctx.fillText("Health",x+40,y+13);
   const hy=y+24;
-  ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4);
-  ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH);
-  ctx.fillStyle="#fff";ctx.fillText("Hunger",x+36,hy+13);
+  ctx.fillStyle="#000"; ctx.fillRect(x-2,hy-2,barW+4,barH+4);
+  ctx.fillStyle="#d9a441"; ctx.fillRect(x,hy,barW*(hunger/100),barH);
+  ctx.fillStyle="#fff"; ctx.fillText("Hunger",x+36,hy+13);
 }
+
+// ====== Mobile Joystick ======
+const joystickBase=document.getElementById('joystickBase');
+const joystickKnob=document.getElementById('joystickKnob');
+let joystick={active:false,dx:0,dy:0};
+
+function getTouchPos(touch){
+  const rect=joystickBase.getBoundingClientRect();
+  return {x: touch.clientX - rect.left - rect.width/2, y: touch.clientY - rect.top - rect.height/2};
+}
+
+joystickBase.addEventListener('touchstart',e=>{joystick.active=true;e.preventDefault();},{passive:false});
+joystickBase.addEventListener('touchmove',e=>{
+  if(!joystick.active) return;
+  const pos=getTouchPos(e.touches[0]);
+  const dist=Math.min(Math.hypot(pos.x,pos.y),40);
+  const angle=Math.atan2(pos.y,pos.x);
+  joystick.dx=Math.cos(angle)*(dist/40);
+  joystick.dy=Math.sin(angle)*(dist/40);
+  joystickKnob.style.transform=`translate(${joystick.dx*40}px,${joystick.dy*40}px)`;
+},{passive:false});
+joystickBase.addEventListener('touchend',e=>{joystick.active=false;joystick.dx=0;joystick.dy=0;joystickKnob.style.transform='translate(0,0)';},{passive:false});
+function handleMobileMovement(){player.x+=joystick.dx*player.speed;player.y+=joystick.dy*player.speed;}
 
 // ====== Game Loop ======
 function loop(){
   if(!craftingOpen){
     let dx=0,dy=0;
-    if(keys["w"]||keys["arrowup"])dy-=player.speed;
-    if(keys["s"]||keys["arrowdown"])dy+=player.speed;
-    if(keys["a"]||keys["arrowleft"])dx-=player.speed;
-    if(keys["d"]||keys["arrowright"])dx+=player.speed;
-    player.x+=dx;player.y+=dy;
+    if(keys["w"]||keys["arrowup"]) dy-=player.speed;
+    if(keys["s"]||keys["arrowdown"]) dy+=player.speed;
+    if(keys["a"]||keys["arrowleft"]) dx-=player.speed;
+    if(keys["d"]||keys["arrowright"]) dx+=player.speed;
+    handleMobileMovement();
+    player.x+=dx; player.y+=dy;
   }
 
   spawnNearbyResources();
@@ -339,33 +351,38 @@ function loop(){
     ctx.restore();
   }
   for(const b of berries){
-    if(berryImg.complete)
-      ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);
-    else{
-      ctx.fillStyle="red";
-      ctx.beginPath();ctx.arc(b.x,b.y,8,0,Math.PI*2);ctx.fill();
-    }
+    if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);
+    else{ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(b.x,b.y,8,0,Math.PI*2); ctx.fill();}
   }
-  // ====== BIGGER PLAYER ======
+
   const playerSize=128;
-  if(playerImg.complete)
-    ctx.drawImage(playerImg,player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);
-  else{
-    ctx.fillStyle="yellow";ctx.fillRect(player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);
-  }
+  if(playerImg.complete) ctx.drawImage(playerImg,player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);
+  else {ctx.fillStyle="yellow"; ctx.fillRect(player.x-playerSize/2,player.y-playerSize/2,playerSize,playerSize);}
 
   for(let i=popups.length-1;i>=0;i--){
     const p=popups[i];
     ctx.fillStyle=p.color;
     ctx.font="20px monospace";
     ctx.fillText(p.txt,p.x,p.y-p.life/2);
-    p.life--;if(p.life<=0)popups.splice(i,1);
+    p.life--; if(p.life<=0) popups.splice(i,1);
   }
   ctx.restore();
   drawBars();
   requestAnimationFrame(loop);
 }
 loop();
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// Multiplayer setup
+const socket = io();
+let otherPlayers = {};
+socket.on('currentPlayers', (players) => { otherPlayers = players; });
+socket.on('newPlayer', (data) => { otherPlayers[data.id] = {x: data.x, y: data.y}; });
+socket.on('playerMoved', (data) => { if(otherPlayers[data.id]) otherPlayers[data.id].x = data.x; otherPlayers[data.id].y = data.y; });
+socket.on('playerDisconnected', (id) => { delete otherPlayers[id]; });
+function sendPlayerPosition() { socket.emit('playerMove', { x: player.x, y: player.y }); }
+setInterval(sendPlayerPosition, 50);
 </script>
 </body>
 </html>
