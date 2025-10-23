@@ -3,45 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pokémon Survival</title>
+<title>Pokémon Survival Infinite</title>
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:monospace;}
-  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
-  #inventoryBox{
-    position:fixed;
-    right:20px;
-    top:20px;
-    background:rgba(80,50,20,0.9);
-    color:#fff;
-    padding:10px 16px;
-    border:2px solid #a87a3a;
-    border-radius:6px;
-    min-width:180px;
-    font-size:18px;
-  }
-  #craftingUI{
-    position:fixed;
-    top:50%;left:50%;
-    transform:translate(-50%,-50%);
-    background:rgba(50,30,10,0.95);
-    color:#fff;
-    border:2px solid #b8824d;
-    padding:20px;
-    border-radius:8px;
-    display:none;
-  }
-  #craftingUI button{
-    display:block;
-    margin:8px 0;
-    width:100%;
-    font-size:18px;
-    background:#c49752;
-    color:#fff;
-    border:none;
-    padding:8px;
-    border-radius:4px;
-    cursor:pointer;
-  }
+html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:monospace;}
+canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+#inventoryBox{
+  position:fixed;
+  right:20px;
+  top:20px;
+  background:rgba(80,50,20,0.9);
+  color:#fff;
+  padding:10px 16px;
+  border:2px solid #a87a3a;
+  border-radius:6px;
+  min-width:180px;
+  font-size:18px;
+}
+#craftingUI{
+  position:fixed;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(50,30,10,0.95);
+  color:#fff;
+  border:2px solid #b8824d;
+  padding:20px;
+  border-radius:8px;
+  display:none;
+}
+#craftingUI button{
+  display:block;
+  margin:8px 0;
+  width:100%;
+  font-size:18px;
+  background:#c49752;
+  color:#fff;
+  border:none;
+  padding:8px;
+  border-radius:4px;
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -69,56 +69,38 @@ const playerImg=new Image();playerImg.src="assets/player.png";
 const stoneImg=new Image();stoneImg.src="assets/stone.png";
 const berryImg=new Image();berryImg.src="assets/berry.png";
 
-// ====== Game Data ======
+// ====== Player & Inventory ======
 const player={x:0,y:0,speed:4};
 let inventory={wood:0,stone:0,axe:false,pickaxe:false,berry:0};
 let equipped=null;
 let health=100;
 let hunger=100;
 
-// ====== Infinite Map System ======
-const CHUNK_SIZE = 1000;
-const loadedChunks = new Map();
-function getChunkKey(cx, cy){ return `${cx},${cy}`; }
+// ====== Dynamic Resources ======
+let trees=[], stones=[], berries=[];
 
-function generateChunk(cx, cy){
-    const trees=[], stones=[], berries=[];
-    const rand = (seed) => { const x = Math.sin(seed)*10000; return x - Math.floor(x); };
+function spawnNearbyResources(){
+  const radius=800;
+  while(trees.length<30){
+    const x=player.x+(Math.random()*radius*2-radius);
+    const y=player.y+(Math.random()*radius*2-radius);
+    trees.push({x,y,size:64,health:3,breaking:false});
+  }
+  while(stones.length<20){
+    const x=player.x+(Math.random()*radius*2-radius);
+    const y=player.y+(Math.random()*radius*2-radius);
+    stones.push({x,y,size:64,health:3,breaking:false});
+  }
+  while(berries.length<15){
+    const x=player.x+(Math.random()*radius*2-radius);
+    const y=player.y+(Math.random()*radius*2-radius);
+    berries.push({x,y,size:48});
+  }
 
-    for(let i=0;i<40;i++){
-        const x = cx*CHUNK_SIZE + rand(cx*100+i)*CHUNK_SIZE;
-        const y = cy*CHUNK_SIZE + rand(cy*100+i)*CHUNK_SIZE;
-        trees.push({x,y,size:64,health:3,breaking:false});
-    }
-    for(let i=0;i<25;i++){
-        const x = cx*CHUNK_SIZE + rand(cx*200+i)*CHUNK_SIZE;
-        const y = cy*CHUNK_SIZE + rand(cy*200+i)*CHUNK_SIZE;
-        stones.push({x,y,size:64,health:3,breaking:false});
-    }
-    for(let i=0;i<20;i++){
-        const x = cx*CHUNK_SIZE + rand(cx*300+i)*CHUNK_SIZE;
-        const y = cy*CHUNK_SIZE + rand(cy*300+i)*CHUNK_SIZE;
-        berries.push({x,y,size:48});
-    }
-
-    loadedChunks.set(getChunkKey(cx,cy), {trees, stones, berries});
-}
-
-function getNearbyObjects(){
-    const cx = Math.floor(player.x / CHUNK_SIZE);
-    const cy = Math.floor(player.y / CHUNK_SIZE);
-    const objs = {trees:[], stones:[], berries:[]};
-    for(let dx=-1; dx<=1; dx++){
-        for(let dy=-1; dy<=1; dy++){
-            const key = getChunkKey(cx+dx, cy+dy);
-            if(!loadedChunks.has(key)) generateChunk(cx+dx, cy+dy);
-            const chunk = loadedChunks.get(key);
-            objs.trees.push(...chunk.trees);
-            objs.stones.push(...chunk.stones);
-            objs.berries.push(...chunk.berries);
-        }
-    }
-    return objs;
+  // Remove far-away objects
+  trees=trees.filter(t=>Math.hypot(t.x-player.x,t.y-player.y)<1000);
+  stones=stones.filter(s=>Math.hypot(s.x-player.x,s.y-player.y)<1000);
+  berries=berries.filter(b=>Math.hypot(b.x-player.x,b.y-player.y)<1000);
 }
 
 // ====== Grass background ======
@@ -161,13 +143,10 @@ function handleClick(e){
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
 
-  const {trees, stones, berries} = getNearbyObjects();
-
-  // 🍓 Berry pickup
+  // Berry pickup
   for(let i=berries.length-1;i>=0;i--){
     const b=berries[i];
-    const dist=Math.hypot(b.x-mx,b.y-my);
-    if(dist<40){
+    if(Math.hypot(b.x-mx,b.y-my)<40){
       berries.splice(i,1);
       const amt=Math.floor(Math.random()*2)+1;
       inventory.berry+=amt;
@@ -321,7 +300,7 @@ function loop(){
     player.x+=dx;player.y+=dy;
   }
 
-  const {trees, stones, berries} = getNearbyObjects();
+  spawnNearbyResources();
 
   ctx.fillStyle=pattern;
   ctx.save();
