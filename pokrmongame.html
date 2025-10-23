@@ -3,37 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pokémon Survival - Text Inventory</title>
+<title>Pokémon Survival - Pixel Inventory</title>
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#000;}
-  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
-  
-  /* ✅ Inventory UI Box */
+  html,body{
+    margin:0;padding:0;overflow:hidden;background:#000;
+  }
+  canvas{
+    width:100vw;height:100vh;display:block;
+    image-rendering:pixelated;cursor:crosshair;
+  }
+
+  /* ✅ Inventory UI */
   #inventoryBox {
     position: fixed;
     top: 20px;
     left: 20px;
-    width: 200px;
-    background: #b5651d;
-    border: 3px solid #4a2c09;
-    border-radius: 6px;
+    width: 260px;
+    height: 180px;
+    background: url("assets/inventory.png") no-repeat center/contain;
+    color: #fff9d9;
     font-family: monospace;
-    color: #fff3d6;
-    padding: 10px;
-    box-shadow: 0 0 10px #000;
+    padding: 30px 15px 10px 15px;
+    box-sizing: border-box;
     font-size: 16px;
+    line-height: 22px;
+    text-shadow: 1px 1px 2px #000;
   }
   #inventoryBox h3 {
-    margin: 0 0 8px 0;
     text-align: center;
-    background: #6e3b0d;
-    padding: 4px;
-    color: #ffe0a3;
-    border-radius: 4px;
+    margin: 0 0 10px 0;
     font-size: 18px;
+    color: #ffe7a3;
   }
 
-  /* ✅ Crafting UI (unchanged) */
+  /* ✅ Crafting UI */
   #craftingUI {
     position: fixed;
     top: 50%;
@@ -58,19 +61,18 @@
     padding: 6px 10px;
     cursor: pointer;
   }
-  #craftingUI button:hover { background: #5a5a5a; }
+  #craftingUI button:hover {
+    background: #5a5a5a;
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<!-- ✅ Inventory Box -->
+<!-- ✅ Inventory UI -->
 <div id="inventoryBox">
   <h3>Inventory</h3>
-  <div id="invList">
-    <p>Wood (0)</p>
-    <p>Stone (0)</p>
-  </div>
+  <div id="invList"></div>
 </div>
 
 <!-- ✅ Crafting UI -->
@@ -105,8 +107,10 @@ for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
 const pattern=ctx.createPattern(grass,"repeat");
 
 // ====== Object Generation ======
-for(let i=0;i<40;i++)trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
-for(let i=0;i<25;i++)stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+for(let i=0;i<40;i++)
+  trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+for(let i=0;i<25;i++)
+  stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
 
 // ====== Controls ======
 const keys={};
@@ -119,7 +123,7 @@ canvas.addEventListener("click",handleClick);
 
 // ====== Click to Break ======
 function handleClick(e){
-  if(craftingOpen) return; // disable breaking when crafting UI open
+  if(craftingOpen) return;
 
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
@@ -131,6 +135,7 @@ function handleClick(e){
 
   if(target){
     target.breaking=true;
+    const breakSpeed = (inventory.axe && trees.includes(target)) || (inventory.pickaxe && stones.includes(target)) ? 150 : 300;
     setTimeout(()=>{
       target.health--;
       if(target.health<=0){
@@ -148,15 +153,13 @@ function handleClick(e){
         updateInventoryBox();
       }
       target.breaking=false;
-    },250);
+    },breakSpeed);
   }
 }
 
 // ====== Pop-up Text ======
 const popups=[];
-function popup(txt,x,y,color){
-  popups.push({txt,x,y,color,life:60});
-}
+function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
 
 // ====== Draw Tree ======
 function drawTree(g,x,y,size,breaking){
@@ -205,7 +208,7 @@ function buildCraftingList(){
         inventory[r.gives]=true;
         popup(`Crafted ${r.name}!`, player.x, player.y, "#ffb000");
         updateInventoryBox();
-        toggleCrafting(); // close menu
+        toggleCrafting();
       } else {
         alert("Not enough materials!");
       }
@@ -214,18 +217,18 @@ function buildCraftingList(){
   });
 }
 
-// ====== Inventory Text Update ======
+// ====== Update Inventory Text ======
 function updateInventoryBox(){
   const invList=document.getElementById("invList");
   invList.innerHTML="";
-  const lines=[];
-  lines.push(`Wood (${inventory.wood})`);
-  lines.push(`Stone (${inventory.stone})`);
-  if(inventory.axe) lines.push("Axe (crafted)");
-  if(inventory.pickaxe) lines.push("Pickaxe (crafted)");
-  lines.forEach(l=>{
-    const p=document.createElement("p");
-    p.textContent=l;
+  const items=[];
+  items.push(`Wood (${inventory.wood})`);
+  items.push(`Stone (${inventory.stone})`);
+  if(inventory.axe) items.push("Axe (crafted)");
+  if(inventory.pickaxe) items.push("Pickaxe (crafted)");
+  items.forEach(i=>{
+    const p=document.createElement("div");
+    p.textContent=i;
     invList.appendChild(p);
   });
 }
