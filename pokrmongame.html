@@ -39,22 +39,25 @@ canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:c
 </div>
 
 <script>
+// ===== Canvas =====
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-function resize(){canvas.width = innerWidth; canvas.height = innerHeight;}
+function resize(){canvas.width=innerWidth; canvas.height=innerHeight;}
 resize(); addEventListener("resize", resize);
 
 // ===== Assets =====
-const playerImg = new Image(); playerImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/player.png";
-const stoneImg = new Image(); stoneImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/stone.png";
-const berryImg = new Image(); berryImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/berry.png";
-const treeImg = new Image(); treeImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/tree.png";
+const playerImg = new Image();
+playerImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/player.png";
+const stoneImg = new Image();
+stoneImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/stone.png";
+const berryImg = new Image();
+berryImg.src = "https://raw.githubusercontent.com/chuckychuck88/Pokemon/main/assets/berry.png";
 
 // ===== Player & Inventory =====
-const player = {x:0,y:0,speed:4};
-let inventory = {wood:0,stone:0,axe:false,axeDurability:0,pickaxe:false,pickaxeDurability:0,berry:0};
-let equipped = null;
-let health = 100, hunger = 100;
+const player={x:0,y:0,speed:4};
+let inventory={wood:0,stone:0,axe:false,axeDurability:0,pickaxe:false,pickaxeDurability:0,berry:0};
+let equipped=null;
+let health=100,hunger=100;
 
 // ===== Resources =====
 let trees=[], stones=[], berries=[];
@@ -84,15 +87,15 @@ function handleEquipKeys(key){
 // ===== Click/Touch Resources =====
 function handleClick(e){
   if(craftingOpen) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = (e.clientX||e.touches[0].clientX)-rect.left-canvas.width/2+player.x;
-  const my = (e.clientY||e.touches[0].clientY)-rect.top-canvas.height/2+player.y;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX||e.touches[0].clientX)-rect.left-canvas.width/2+player.x;
+  const my=(e.clientY||e.touches[0].clientY)-rect.top-canvas.height/2+player.y;
 
   // Pick berries
-  for(let i=berries.length-1;i>=0;i--){const b=berries[i]; if(Math.hypot(b.x-mx,b.y-my)<20){berries.splice(i,1); const amt=Math.floor(Math.random()*2)+1; inventory.berry+=amt; popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c"); updateInventoryBox(); return;}}
+  for(let i=berries.length-1;i>=0;i--){const b=berries[i];if(Math.hypot(b.x-mx,b.y-my)<20){berries.splice(i,1);let amt=Math.floor(Math.random()*2)+1;inventory.berry+=amt;popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c");updateInventoryBox();return;}}
 
   // Trees/Stones
-  let target=null; [...trees,...stones].forEach(obj=>{const dist=Math.hypot(obj.x-mx,obj.y-my); if(dist<40&&!target) target=obj;});
+  let target=null;[...trees,...stones].forEach(obj=>{const dist=Math.hypot(obj.x-mx,obj.y-my);if(dist<40&&!target)target=obj;});
   if(target){
     target.breaking=true; let breakSpeed=300;
     if(equipped==="axe" && trees.includes(target)) breakSpeed=150;
@@ -100,8 +103,8 @@ function handleClick(e){
     setTimeout(()=>{
       target.health--;
       if(target.health<=0){
-        if(trees.includes(target)){trees.splice(trees.indexOf(target),1); let amt=Math.floor(Math.random()*2)+2; if(equipped==="axe"){if(Math.random()<0.3) amt++; if(Math.random()<0.1) amt+=2; inventory.axeDurability--; if(inventory.axeDurability<=0){inventory.axe=false;equipped=null;popup("Your Axe broke!",player.x,player.y,"#fff");}} inventory.wood+=amt; popup("+ "+amt+" wood",target.x,target.y,"#d0a050");}
-        else if(stones.includes(target)){stones.splice(stones.indexOf(target),1); let amt=Math.floor(Math.random()*2)+2; if(equipped==="pickaxe"){if(Math.random()<0.3) amt++; if(Math.random()<0.1) amt+=2; inventory.pickaxeDurability--; if(inventory.pickaxeDurability<=0){inventory.pickaxe=false;equipped=null;popup("Your Pickaxe broke!",player.x,player.y,"#fff");}} inventory.stone+=amt; popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");}
+        if(trees.includes(target)){trees.splice(trees.indexOf(target),1);let amt=Math.floor(Math.random()*2)+2; if(equipped==="axe"){if(Math.random()<0.3) amt++; if(Math.random()<0.1) amt+=2; inventory.axeDurability--; if(inventory.axeDurability<=0){inventory.axe=false;equipped=null;popup("Your Axe broke!",player.x,player.y,"#fff");}} inventory.wood+=amt; popup("+ "+amt+" wood",target.x,target.y,"#d0a050");}
+        else if(stones.includes(target)){stones.splice(stones.indexOf(target),1);let amt=Math.floor(Math.random()*2)+2;if(equipped==="pickaxe"){if(Math.random()<0.3) amt++;if(Math.random()<0.1) amt+=2;inventory.pickaxeDurability--; if(inventory.pickaxeDurability<=0){inventory.pickaxe=false;equipped=null;popup("Your Pickaxe broke!",player.x,player.y,"#fff");}} inventory.stone+=amt; popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");}
         updateInventoryBox();
       }
       target.breaking=false;
@@ -116,13 +119,42 @@ function eatBerry(){if(inventory.berry>0){inventory.berry--;hunger=Math.min(100,
 const popups=[];
 function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
 
+// ===== Draw Tree (good one) =====
+function drawTree(g,t){
+  g.save();
+  if(t.breaking) g.translate(t.x+Math.random()*4-2,t.y+Math.random()*4-2);
+  else g.translate(t.x,t.y);
+
+  // Trunk
+  g.fillStyle="#5c3b1e";
+  g.fillRect(-t.size/12,0,t.size/6,t.size/2);
+
+  // Leaves (circle canopy)
+  g.beginPath();
+  g.fillStyle="#2a8b34";
+  g.arc(0,-t.size/4,t.size/3,0,Math.PI*2);
+  g.fill();
+
+  g.beginPath();
+  g.fillStyle="#38b044";
+  g.arc(-t.size/6,-t.size/3,t.size/4,0,Math.PI*2);
+  g.fill();
+
+  g.beginPath();
+  g.fillStyle="#4cd155";
+  g.arc(t.size/6,-t.size/3,t.size/4,0,Math.PI*2);
+  g.fill();
+
+  g.restore();
+}
+
 // ===== Crafting =====
 let craftingOpen=false;
 const craftingUI=document.getElementById("craftingUI");
 const craftList=document.getElementById("craftList");
 const recipes=[{name:"Axe",requires:{wood:3,stone:2},gives:"axe"},{name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}];
 function toggleCrafting(){craftingOpen=!craftingOpen;craftingUI.style.display=craftingOpen?"block":"none"; if(craftingOpen) buildCraftingList();}
-function buildCraftingList(){craftList.innerHTML=""; recipes.forEach(r=>{const btn=document.createElement("button"); btn.textContent=`Craft ${r.name} (${r.requires.wood} wood, ${r.requires.stone} stone)`; btn.onclick=()=>{if(inventory.wood>=r.requires.wood&&inventory.stone>=r.requires.stone){inventory.wood-=r.requires.wood; inventory.stone-=r.requires.stone; inventory[r.gives]=true; if(r.gives==="axe") inventory.axeDurability=30; if(r.gives==="pickaxe") inventory.pickaxeDurability=30; popup(`Crafted ${r.name}!`,player.x,player.y,"#ffb000"); updateInventoryBox(); toggleCrafting();}else alert("Not enough materials!");}; craftList.appendChild(btn);});}
+function buildCraftingList(){craftList.innerHTML=""; recipes.forEach(r=>{const btn=document.createElement("button");btn.textContent=`Craft ${r.name} (${r.requires.wood} wood, ${r.requires.stone} stone)`;btn.onclick=()=>{if(inventory.wood>=r.requires.wood&&inventory.stone>=r.requires.stone){inventory.wood-=r.requires.wood;inventory.stone-=r.requires.stone;inventory[r.gives]=true;if(r.gives==="axe")inventory.axeDurability=30;if(r.gives==="pickaxe")inventory.pickaxeDurability=30;popup(`Crafted ${r.name}!`,player.x,player.y,"#ffb000");updateInventoryBox();toggleCrafting();}else alert("Not enough materials!");}; craftList.appendChild(btn);});}
 
 // ===== Inventory =====
 function updateInventoryBox(){const invList=document.getElementById("invList"); const items=[]; items.push(`Wood (${inventory.wood})`); items.push(`Stone (${inventory.stone})`); if(inventory.axe) items.push(`Axe ${equipped==="axe"?"(Equipped)":"(Crafted)"} [${inventory.axeDurability}]`); if(inventory.pickaxe) items.push(`Pickaxe ${equipped==="pickaxe"?"(Equipped)":"(Crafted)"} [${inventory.pickaxeDurability}]`); if(inventory.berry) items.push(`Berry (${inventory.berry})`); invList.innerHTML=items.join("<br>");}
@@ -134,15 +166,13 @@ setInterval(()=>{hunger=Math.max(0,hunger-0.05); if(hunger<=0) health=Math.max(0
 function drawBars(){const barW=150,barH=16,x=20,y=20; ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4); ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH); ctx.fillStyle="#fff";ctx.font="14px monospace"; ctx.fillText("Health",x+40,y+13); const hy=y+24; ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4); ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH); ctx.fillStyle="#fff"; ctx.fillText("Hunger",x+36,hy+13);}
 
 // ===== Mobile Joystick =====
-const joystickBase=document.getElementById('joystickBase');
-const joystickKnob=document.getElementById('joystickKnob');
-let joystick={dx:0,dy:0,active:false};
+const joystickBase=document.getElementById('joystickBase'); const joystickKnob=document.getElementById('joystickKnob'); let joystick={dx:0,dy:0,active:false};
 function getJoystickPos(x,y){const rect=joystickBase.getBoundingClientRect(); return {x:x-rect.left-rect.width/2, y:y-rect.top-rect.height/2};}
-joystickBase.addEventListener('pointerdown',e=>{joystick.active=true; e.target.setPointerCapture(e.pointerId);});
+joystickBase.addEventListener('pointerdown',e=>{joystick.active=true;e.target.setPointerCapture(e.pointerId);});
 joystickBase.addEventListener('pointermove',e=>{if(!joystick.active) return; const pos=getJoystickPos(e.clientX,e.clientY); const distance=Math.min(Math.hypot(pos.x,pos.y),40); const angle=Math.atan2(pos.y,pos.x); joystick.dx=Math.cos(angle)*(distance/40); joystick.dy=Math.sin(angle)*(distance/40); joystickKnob.style.transform=`translate(${joystick.dx*40}px,${joystick.dy*40}px)`;});
 function resetJoystick(){joystick.dx=0; joystick.dy=0; joystickKnob.style.transform='translate(0,0)';}
-joystickBase.addEventListener('pointerup',e=>{joystick.active=false; resetJoystick();});
-joystickBase.addEventListener('pointercancel',e=>{joystick.active=false; resetJoystick();});
+joystickBase.addEventListener('pointerup',e=>{joystick.active=false;resetJoystick();});
+joystickBase.addEventListener('pointercancel',e=>{joystick.active=false;resetJoystick();});
 
 // ===== Game Loop =====
 function loop(){
@@ -152,8 +182,8 @@ function loop(){
     if(keys["s"]||keys["arrowdown"]) dy+=player.speed;
     if(keys["a"]||keys["arrowleft"]) dx-=player.speed;
     if(keys["d"]||keys["arrowright"]) dx+=player.speed;
-    dx += joystick.dx * player.speed;
-    dy += joystick.dy * player.speed;
+    dx += joystick.dx*player.speed;
+    dy += joystick.dy*player.speed;
     player.x += dx; player.y += dy;
   }
   spawnNearbyResources();
@@ -161,9 +191,13 @@ function loop(){
   ctx.fillStyle="#3aa63f"; ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.save(); ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
 
-  // Draw resources
-  for(const t of trees){if(treeImg.complete) ctx.drawImage(treeImg,t.x-64,t.y-64,128,128);}
+  // Draw trees
+  for(const t of trees) drawTree(ctx,t);
+
+  // Draw stones
   for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-32,s.y-32,64,64);}
+
+  // Draw berries
   for(const b of berries){if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);}
 
   // Draw player
@@ -171,8 +205,8 @@ function loop(){
 
   // Popups
   for(let i=popups.length-1;i>=0;i--){const p=popups[i];ctx.fillStyle=p.color;ctx.font="20px monospace";ctx.fillText(p.txt,p.x,p.y-p.life/2);p.life--; if(p.life<=0) popups.splice(i,1);}
-
-  ctx.restore(); drawBars();
+  ctx.restore();
+  drawBars();
   requestAnimationFrame(loop);
 }
 loop();
