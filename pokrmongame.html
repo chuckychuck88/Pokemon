@@ -59,13 +59,26 @@ let inventory={wood:0,stone:0,axe:false,axeDurability:0,pickaxe:false,pickaxeDur
 let equipped=null;
 let health=100,hunger=100;
 
-// ===== Resources =====
+// ===== Resources with size variation =====
 let trees=[], stones=[], berries=[];
 function spawnNearbyResources(){
   const radius=800;
-  while(trees.length<30){trees.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:128,health:3,breaking:false});}
-  while(stones.length<20){stones.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:64,health:3,breaking:false});}
-  while(berries.length<15){berries.push({x:player.x+Math.random()*radius*2-radius,y:player.y+Math.random()*radius*2-radius,size:48});}
+
+  while(trees.length<30){
+    let size = Math.random()*60 + 80; // Trees 80 - 140
+    trees.push({x:player.x+Math.random()*radius*2-radius, y:player.y+Math.random()*radius*2-radius, size:size, health:3, breaking:false});
+  }
+
+  while(stones.length<20){
+    let size = Math.random()*30 + 40; // Stones 40 - 70
+    stones.push({x:player.x+Math.random()*radius*2-radius, y:player.y+Math.random()*radius*2-radius, size:size, health:3, breaking:false});
+  }
+
+  while(berries.length<15){
+    let size = Math.random()*20 + 30; // Berries 30 - 50
+    berries.push({x:player.x+Math.random()*radius*2-radius, y:player.y+Math.random()*radius*2-radius, size:size});
+  }
+
   trees = trees.filter(t=>Math.hypot(t.x-player.x,t.y-player.y)<1000);
   stones = stones.filter(s=>Math.hypot(s.x-player.x,s.y-player.y)<1000);
   berries = berries.filter(b=>Math.hypot(b.x-player.x,b.y-player.y)<1000);
@@ -92,10 +105,10 @@ function handleClick(e){
   const my=(e.clientY||e.touches[0].clientY)-rect.top-canvas.height/2+player.y;
 
   // Pick berries
-  for(let i=berries.length-1;i>=0;i--){const b=berries[i];if(Math.hypot(b.x-mx,b.y-my)<20){berries.splice(i,1);let amt=Math.floor(Math.random()*2)+1;inventory.berry+=amt;popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c");updateInventoryBox();return;}}
+  for(let i=berries.length-1;i>=0;i--){const b=berries[i];if(Math.hypot(b.x-mx,b.y-my)<b.size/2){berries.splice(i,1);let amt=Math.floor(Math.random()*2)+1;inventory.berry+=amt;popup("+ "+amt+" berry",b.x,b.y,"#ff4c4c");updateInventoryBox();return;}}
 
   // Trees/Stones
-  let target=null;[...trees,...stones].forEach(obj=>{const dist=Math.hypot(obj.x-mx,obj.y-my);if(dist<40&&!target)target=obj;});
+  let target=null;[...trees,...stones].forEach(obj=>{const dist=Math.hypot(obj.x-mx,obj.y-my);if(dist<obj.size/2&&!target)target=obj;});
   if(target){
     target.breaking=true; let breakSpeed=300;
     if(equipped==="axe" && trees.includes(target)) breakSpeed=150;
@@ -119,32 +132,27 @@ function eatBerry(){if(inventory.berry>0){inventory.berry--;hunger=Math.min(100,
 const popups=[];
 function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
 
-// ===== Draw Tree (good one) =====
+// ===== Draw Tree (variable size) =====
 function drawTree(g,t){
   g.save();
   if(t.breaking) g.translate(t.x+Math.random()*4-2,t.y+Math.random()*4-2);
   else g.translate(t.x,t.y);
 
-  // Trunk
+  // Trunk proportional to size
   g.fillStyle="#5c3b1e";
   g.fillRect(-t.size/12,0,t.size/6,t.size/2);
 
-  // Leaves (circle canopy)
+  // Leaves (circle canopy proportional)
+  let canopy = t.size/1.5;
   g.beginPath();
   g.fillStyle="#2a8b34";
-  g.arc(0,-t.size/4,t.size/3,0,Math.PI*2);
-  g.fill();
-
+  g.arc(0,-t.size/4,canopy,0,Math.PI*2); g.fill();
   g.beginPath();
   g.fillStyle="#38b044";
-  g.arc(-t.size/6,-t.size/3,t.size/4,0,Math.PI*2);
-  g.fill();
-
+  g.arc(-t.size/6,-t.size/3,canopy*0.7,0,Math.PI*2); g.fill();
   g.beginPath();
   g.fillStyle="#4cd155";
-  g.arc(t.size/6,-t.size/3,t.size/4,0,Math.PI*2);
-  g.fill();
-
+  g.arc(t.size/6,-t.size/3,canopy*0.7,0,Math.PI*2); g.fill();
   g.restore();
 }
 
@@ -163,7 +171,7 @@ function updateInventoryBox(){const invList=document.getElementById("invList"); 
 setInterval(()=>{hunger=Math.max(0,hunger-0.05); if(hunger<=0) health=Math.max(0,health-0.1);},100);
 
 // ===== Draw Bars =====
-function drawBars(){const barW=150,barH=16,x=20,y=20; ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4); ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH); ctx.fillStyle="#fff";ctx.font="14px monospace"; ctx.fillText("Health",x+40,y+13); const hy=y+24; ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4); ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH); ctx.fillStyle="#fff"; ctx.fillText("Hunger",x+36,hy+13);}
+function drawBars(){const barW=150,barH=16,x=20,y=20; ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4); ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH); ctx.fillStyle="#fff";ctx.font="14px monospace"; ctx.fillText("Health",x+40,y+13); const hy=y+24; ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4); ctx.fillStyle="#d9a441"; ctx.fillRect(x,hy,barW*(hunger/100),barH); ctx.fillStyle="#fff"; ctx.fillText("Hunger",x+36,hy+13);}
 
 // ===== Mobile Joystick =====
 const joystickBase=document.getElementById('joystickBase'); const joystickKnob=document.getElementById('joystickKnob'); let joystick={dx:0,dy:0,active:false};
@@ -187,23 +195,12 @@ function loop(){
     player.x += dx; player.y += dy;
   }
   spawnNearbyResources();
-
   ctx.fillStyle="#3aa63f"; ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.save(); ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
-
-  // Draw trees
   for(const t of trees) drawTree(ctx,t);
-
-  // Draw stones
-  for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-32,s.y-32,64,64);}
-
-  // Draw berries
+  for(const s of stones){if(stoneImg.complete) ctx.drawImage(stoneImg,s.x-s.size/2,s.y-s.size/2,s.size,s.size);}
   for(const b of berries){if(berryImg.complete) ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);}
-
-  // Draw player
   if(playerImg.complete) ctx.drawImage(playerImg,player.x-64,player.y-64,128,128);
-
-  // Popups
   for(let i=popups.length-1;i>=0;i--){const p=popups[i];ctx.fillStyle=p.color;ctx.font="20px monospace";ctx.fillText(p.txt,p.x,p.y-p.life/2);p.life--; if(p.life<=0) popups.splice(i,1);}
   ctx.restore();
   drawBars();
