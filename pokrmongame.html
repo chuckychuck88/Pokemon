@@ -187,11 +187,7 @@ function handleClick(e){
             if(Math.random()<0.3) amt+=1;
             if(Math.random()<0.1) amt+=2;
             inventory.axeDurability--;
-            if(inventory.axeDurability<=0){
-              inventory.axe=false;
-              equipped=null;
-              popup("Your Axe broke!",player.x,player.y,"#fff");
-            }
+            if(inventory.axeDurability<=0){inventory.axe=false;equipped=null;popup("Your Axe broke!",player.x,player.y,"#fff");}
           }
           inventory.wood+=amt;
           popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
@@ -202,11 +198,7 @@ function handleClick(e){
             if(Math.random()<0.3) amt+=1;
             if(Math.random()<0.1) amt+=2;
             inventory.pickaxeDurability--;
-            if(inventory.pickaxeDurability<=0){
-              inventory.pickaxe=false;
-              equipped=null;
-              popup("Your Pickaxe broke!",player.x,player.y,"#fff");
-            }
+            if(inventory.pickaxeDurability<=0){inventory.pickaxe=false;equipped=null;popup("Your Pickaxe broke!",player.x,player.y,"#fff");}
           }
           inventory.stone+=amt;
           popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
@@ -289,6 +281,7 @@ function buildCraftingList(){
 // ====== Inventory Text ======
 function updateInventoryBox(){
   const invList=document.getElementById("invList");
+  invList.innerHTML="";
   const items=[];
   items.push(`Wood (${inventory.wood})`);
   items.push(`Stone (${inventory.stone})`);
@@ -364,4 +357,12 @@ function loop(){
     ctx.font="20px monospace";
     ctx.fillText(p.txt,p.x,p.y-p.life/2);
     p.life--;if(p.life<=0)popups.splice(i,1);
- 
+  }
+  ctx.restore();
+  drawBars();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
