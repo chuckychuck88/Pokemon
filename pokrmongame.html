@@ -47,13 +47,11 @@
 <body>
 <canvas id="game"></canvas>
 
-<!-- ✅ Inventory box -->
 <div id="inventoryBox">
   <b>Inventory</b>
   <div id="invList">Wood (0)<br>Stone (0)</div>
 </div>
 
-<!-- ✅ Crafting UI -->
 <div id="craftingUI">
   <h2>Crafting</h2>
   <div id="craftList"></div>
@@ -77,25 +75,60 @@ let inventory={wood:0,stone:0,axe:false,pickaxe:false,berry:0};
 let equipped=null;
 let health=100;
 let hunger=100;
-const trees=[],stones=[],berries=[];
+
+// ====== Infinite Map System ======
+const CHUNK_SIZE = 1000;
+const loadedChunks = new Map();
+function getChunkKey(cx, cy){ return `${cx},${cy}`; }
+
+function generateChunk(cx, cy){
+    const trees=[], stones=[], berries=[];
+    const rand = (seed) => { const x = Math.sin(seed)*10000; return x - Math.floor(x); };
+
+    for(let i=0;i<40;i++){
+        const x = cx*CHUNK_SIZE + rand(cx*100+i)*CHUNK_SIZE;
+        const y = cy*CHUNK_SIZE + rand(cy*100+i)*CHUNK_SIZE;
+        trees.push({x,y,size:64,health:3,breaking:false});
+    }
+    for(let i=0;i<25;i++){
+        const x = cx*CHUNK_SIZE + rand(cx*200+i)*CHUNK_SIZE;
+        const y = cy*CHUNK_SIZE + rand(cy*200+i)*CHUNK_SIZE;
+        stones.push({x,y,size:64,health:3,breaking:false});
+    }
+    for(let i=0;i<20;i++){
+        const x = cx*CHUNK_SIZE + rand(cx*300+i)*CHUNK_SIZE;
+        const y = cy*CHUNK_SIZE + rand(cy*300+i)*CHUNK_SIZE;
+        berries.push({x,y,size:48});
+    }
+
+    loadedChunks.set(getChunkKey(cx,cy), {trees, stones, berries});
+}
+
+function getNearbyObjects(){
+    const cx = Math.floor(player.x / CHUNK_SIZE);
+    const cy = Math.floor(player.y / CHUNK_SIZE);
+    const objs = {trees:[], stones:[], berries:[]};
+    for(let dx=-1; dx<=1; dx++){
+        for(let dy=-1; dy<=1; dy++){
+            const key = getChunkKey(cx+dx, cy+dy);
+            if(!loadedChunks.has(key)) generateChunk(cx+dx, cy+dy);
+            const chunk = loadedChunks.get(key);
+            objs.trees.push(...chunk.trees);
+            objs.stones.push(...chunk.stones);
+            objs.berries.push(...chunk.berries);
+        }
+    }
+    return objs;
+}
 
 // ====== Grass background ======
 const grass=document.createElement("canvas");
-grass.width=64;grass.height=64;
+grass.width=64; grass.height=64;
 const gctx=grass.getContext("2d");
-gctx.fillStyle="#3aa63f";gctx.fillRect(0,0,64,64);
+gctx.fillStyle="#3aa63f"; gctx.fillRect(0,0,64,64);
 gctx.fillStyle="#2e8b34";
-for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
+for(let i=0;i<80;i++) gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
 const pattern=ctx.createPattern(grass,"repeat");
-
-// ====== Spawn objects ======
-for(let i=0;i<40;i++)
-  trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
-for(let i=0;i<25;i++)
-  stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
-// 🟣 Spawn berries NEAR player (so visible immediately)
-for(let i=0;i<20;i++)
-  berries.push({x:Math.random()*600-300,y:Math.random()*600-300,size:48});
 
 // ====== Controls ======
 const keys={};
@@ -127,6 +160,8 @@ function handleClick(e){
   if(craftingOpen) return;
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
+
+  const {trees, stones, berries} = getNearbyObjects();
 
   // 🍓 Berry pickup
   for(let i=berries.length-1;i>=0;i--){
@@ -285,6 +320,8 @@ function loop(){
     if(keys["d"]||keys["arrowright"])dx+=player.speed;
     player.x+=dx;player.y+=dy;
   }
+
+  const {trees, stones, berries} = getNearbyObjects();
 
   ctx.fillStyle=pattern;
   ctx.save();
