@@ -1,6 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pokémon Survival</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:monospace;}
+  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+  #inventoryBox{
+    position:fixed;
+    right:20px;
+    top:20px;
+    background:rgba(80,50,20,0.9);
+    color:#fff;
+    padding:10px 16px;
+    border:2px solid #a87a3a;
+    border-radius:6px;
+    min-width:180px;
+    font-size:18px;
+  }
+  #craftingUI{
+    position:fixed;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(50,30,10,0.95);
+    color:#fff;
+    border:2px solid #b8824d;
+    padding:20px;
+    border-radius:8px;
+    display:none;
+  }
+  #craftingUI button{
+    display:block;
+    margin:8px 0;
+    width:100%;
+    font-size:18px;
+    background:#c49752;
+    color:#fff;
+    border:none;
+    padding:8px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ✅ Inventory box -->
+<div id="inventoryBox">
+  <b>Inventory</b>
+  <div id="invList">Wood (0)<br>Stone (0)</div>
+</div>
+
+<!-- ✅ Crafting UI -->
+<div id="craftingUI">
+  <h2>Crafting</h2>
+  <div id="craftList"></div>
+  <p style="color:gray;">Press [C] to close</p>
+</div>
+
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d",{alpha:true});
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d",{alpha:true});
 function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
 resize();addEventListener("resize",resize);
 
@@ -12,12 +74,12 @@ const berryImg=new Image();berryImg.src="assets/berry.png";
 // ====== Game Data ======
 const player={x:0,y:0,speed:4};
 let inventory={wood:0,stone:0,axe:false,pickaxe:false,berry:0};
-let equipped = null; // currently equipped tool
-let health = 100;
-let hunger = 100;
+let equipped=null;
+let health=100;
+let hunger=100;
 const trees=[],stones=[],berries=[];
 
-// ====== Background Grass ======
+// ====== Grass background ======
 const grass=document.createElement("canvas");
 grass.width=64;grass.height=64;
 const gctx=grass.getContext("2d");
@@ -26,13 +88,14 @@ gctx.fillStyle="#2e8b34";
 for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
 const pattern=ctx.createPattern(grass,"repeat");
 
-// ====== Object Generation ======
+// ====== Spawn objects ======
 for(let i=0;i<40;i++)
   trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
 for(let i=0;i<25;i++)
   stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
-for(let i=0;i<30;i++)
-  berries.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:48});
+// 🟣 Spawn berries NEAR player (so visible immediately)
+for(let i=0;i<20;i++)
+  berries.push({x:Math.random()*600-300,y:Math.random()*600-300,size:48});
 
 // ====== Controls ======
 const keys={};
@@ -45,7 +108,7 @@ onkeydown=e=>{
 onkeyup=e=>keys[e.key.toLowerCase()]=false;
 canvas.addEventListener("click",handleClick);
 
-// ====== Handle Equip Keys ======
+// ====== Equip Keys ======
 function handleEquipKeys(key){
   if(key==="1" && inventory.axe){
     if(equipped==="axe"){equipped=null;popup("Unequipped Axe",player.x,player.y,"#fff");}
@@ -59,13 +122,13 @@ function handleEquipKeys(key){
   }
 }
 
-// ====== Click to Break or Pick Berry ======
+// ====== Click to Break / Pick Berries ======
 function handleClick(e){
   if(craftingOpen) return;
   const mx=e.offsetX-canvas.width/2+player.x;
   const my=e.offsetY-canvas.height/2+player.y;
 
-  // Check for berry pickup
+  // 🍓 Berry pickup
   for(let i=berries.length-1;i>=0;i--){
     const b=berries[i];
     const dist=Math.hypot(b.x-mx,b.y-my);
@@ -79,7 +142,7 @@ function handleClick(e){
     }
   }
 
-  // Otherwise tree or stone
+  // Trees / Stones
   let target=null;
   [...trees,...stones].forEach(obj=>{
     const dist=Math.hypot(obj.x-mx,obj.y-my);
@@ -117,16 +180,14 @@ function handleClick(e){
 function eatBerry(){
   if(inventory.berry>0){
     inventory.berry--;
-    hunger = Math.min(100,hunger+20);
-    health = Math.min(100,health+10);
+    hunger=Math.min(100,hunger+20);
+    health=Math.min(100,health+10);
     popup("You ate a berry!",player.x,player.y,"#ff5c5c");
     updateInventoryBox();
-  } else {
-    popup("No berries!",player.x,player.y,"#ccc");
-  }
+  }else popup("No berries!",player.x,player.y,"#ccc");
 }
 
-// ====== Pop-up Text ======
+// ====== Popup System ======
 const popups=[];
 function popup(txt,x,y,color){popups.push({txt,x,y,color,life:60});}
 
@@ -149,44 +210,39 @@ function drawTree(g,x,y,size,breaking){
   g.restore();
 }
 
-// ====== Crafting System ======
+// ====== Crafting ======
 let craftingOpen=false;
 const craftingUI=document.getElementById("craftingUI");
 const craftList=document.getElementById("craftList");
-
 const recipes=[
-  {name:"Axe", requires:{wood:3,stone:2}, gives:"axe"},
-  {name:"Pickaxe", requires:{wood:2,stone:3}, gives:"pickaxe"},
+  {name:"Axe",requires:{wood:3,stone:2},gives:"axe"},
+  {name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}
 ];
-
 function toggleCrafting(){
   craftingOpen=!craftingOpen;
   craftingUI.style.display=craftingOpen?"block":"none";
   if(craftingOpen) buildCraftingList();
 }
-
 function buildCraftingList(){
   craftList.innerHTML="";
   recipes.forEach(r=>{
     const btn=document.createElement("button");
     btn.textContent=`Craft ${r.name} (${r.requires.wood} wood, ${r.requires.stone} stone)`;
     btn.onclick=()=>{
-      if(inventory.wood>=r.requires.wood && inventory.stone>=r.requires.stone){
+      if(inventory.wood>=r.requires.wood&&inventory.stone>=r.requires.stone){
         inventory.wood-=r.requires.wood;
         inventory.stone-=r.requires.stone;
         inventory[r.gives]=true;
-        popup(`Crafted ${r.name}!`, player.x, player.y, "#ffb000");
+        popup(`Crafted ${r.name}!`,player.x,player.y,"#ffb000");
         updateInventoryBox();
         toggleCrafting();
-      } else {
-        alert("Not enough materials!");
-      }
+      }else alert("Not enough materials!");
     };
     craftList.appendChild(btn);
   });
 }
 
-// ====== Update Inventory Text ======
+// ====== Inventory Text ======
 function updateInventoryBox(){
   const invList=document.getElementById("invList");
   invList.innerHTML="";
@@ -201,23 +257,19 @@ function updateInventoryBox(){
 
 // ====== Hunger / Health Drain ======
 setInterval(()=>{
-  hunger = Math.max(0, hunger - 0.05);
-  if(hunger <= 0) health = Math.max(0, health - 0.1);
+  hunger=Math.max(0,hunger-0.05);
+  if(hunger<=0) health=Math.max(0,health-0.1);
 },100);
 
 // ====== Draw Bars ======
 function drawBars(){
-  const barW = 150, barH = 16;
-  const x = 20, y = 20;
-
-  // Health bar
+  const barW=150,barH=16;
+  const x=20,y=20;
   ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4);
   ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH);
   ctx.fillStyle="#fff";ctx.font="14px monospace";
   ctx.fillText("Health",x+40,y+13);
-
-  // Hunger bar
-  const hy = y+24;
+  const hy=y+24;
   ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4);
   ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH);
   ctx.fillStyle="#fff";ctx.fillText("Hunger",x+36,hy+13);
@@ -248,38 +300,31 @@ function loop(){
     if(stoneImg.complete) ctx.drawImage(stoneImg,-s.size/2,-s.size/2,s.size,s.size);
     ctx.restore();
   }
-
-  // Draw berries
   for(const b of berries){
     if(berryImg.complete)
       ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);
     else{
       ctx.fillStyle="red";
-      ctx.beginPath();
-      ctx.arc(b.x,b.y,8,0,Math.PI*2);
-      ctx.fill();
+      ctx.beginPath();ctx.arc(b.x,b.y,8,0,Math.PI*2);ctx.fill();
     }
   }
-
-  // Player
   if(playerImg.complete)
     ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
   else{
     ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
   }
-
-  // Popups
   for(let i=popups.length-1;i>=0;i--){
     const p=popups[i];
     ctx.fillStyle=p.color;
     ctx.font="20px monospace";
     ctx.fillText(p.txt,p.x,p.y-p.life/2);
-    p.life--; if(p.life<=0)popups.splice(i,1);
+    p.life--;if(p.life<=0)popups.splice(i,1);
   }
-
   ctx.restore();
   drawBars();
   requestAnimationFrame(loop);
 }
 loop();
 </script>
+</body>
+</html>
