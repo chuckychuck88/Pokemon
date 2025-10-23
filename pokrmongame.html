@@ -3,14 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pokémon Survival Minimal HUD</title>
+<title>Pokémon Survival + Crafting</title>
 <style>
   html,body{margin:0;padding:0;overflow:hidden;background:#000;}
   canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+  #craftingUI{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#222;border:3px solid #fff;padding:20px;border-radius:10px;
+    display:none;color:white;font-family:monospace;
+  }
+  .craft-item{
+    margin:10px;padding:10px;border:2px solid #888;background:#333;cursor:pointer;
+  }
+  .craft-item:hover{background:#444;}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="craftingUI">
+  <h2>Crafting</h2>
+  <div id="craftList"></div>
+  <p style="color:gray;">Press [C] to close</p>
+</div>
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d",{alpha:true});
@@ -22,10 +36,12 @@ const playerImg=new Image();playerImg.src="assets/player.png";
 const stoneImg=new Image();stoneImg.src="assets/stone.png";
 const iconWood=new Image();iconWood.src="assets/item_wood.png";
 const iconStone=new Image();iconStone.src="assets/item_stone.png";
+const iconAxe=new Image();iconAxe.src="assets/item_axe.png";
+const iconPickaxe=new Image();iconPickaxe.src="assets/item_pickaxe.png";
 
 // ====== Game Data ======
 const player={x:0,y:0,speed:4};
-let inventory={wood:0,stone:0};
+let inventory={wood:0,stone:0,axe:false,pickaxe:false};
 const trees=[],stones=[];
 
 // ====== Background Grass ======
@@ -43,9 +59,53 @@ for(let i=0;i<25;i++)stones.push({x:Math.random()*4000-2000,y:Math.random()*4000
 
 // ====== Controls ======
 const keys={};
-onkeydown=e=>keys[e.key.toLowerCase()]=true;
+onkeydown=e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key.toLowerCase()==='c') toggleCrafting();
+};
 onkeyup=e=>keys[e.key.toLowerCase()]=false;
 canvas.addEventListener("click",handleClick);
+
+// ====== Crafting System ======
+const craftingUI=document.getElementById("craftingUI");
+const craftList=document.getElementById("craftList");
+const recipes=[
+  {name:"Axe",req:{wood:3,stone:2},item:"axe"},
+  {name:"Pickaxe",req:{wood:2,stone:3},item:"pickaxe"}
+];
+
+function toggleCrafting(){
+  craftingUI.style.display=(craftingUI.style.display==="none"||craftingUI.style.display==="")?"block":"none";
+  renderCrafting();
+}
+
+function renderCrafting(){
+  craftList.innerHTML="";
+  recipes.forEach(r=>{
+    const div=document.createElement("div");
+    div.className="craft-item";
+    div.innerHTML=`<b>${r.name}</b><br>Wood: ${r.req.wood} | Stone: ${r.req.stone}`;
+    div.onclick=()=>craftItem(r);
+    craftList.appendChild(div);
+  });
+}
+
+function craftItem(recipe){
+  if(inventory[recipe.item]){
+    alert(`${recipe.name} already crafted!`);
+    return;
+  }
+  const canCraft=inventory.wood>=recipe.req.wood && inventory.stone>=recipe.req.stone;
+  if(canCraft){
+    inventory.wood-=recipe.req.wood;
+    inventory.stone-=recipe.req.stone;
+    inventory[recipe.item]=true;
+    popup(`Crafted ${recipe.name}!`,player.x,player.y,"#ffd700");
+    renderCrafting();
+  }else{
+    alert("Not enough materials!");
+  }
+}
 
 // ====== Click to Break ======
 function handleClick(e){
@@ -59,6 +119,10 @@ function handleClick(e){
 
   if(target){
     target.breaking=true;
+    let delay=250; // base break time
+    if(trees.includes(target)&&inventory.axe) delay=120; // faster with axe
+    if(stones.includes(target)&&inventory.pickaxe) delay=120; // faster with pickaxe
+
     setTimeout(()=>{
       target.health--;
       if(target.health<=0){
@@ -75,7 +139,7 @@ function handleClick(e){
         }
       }
       target.breaking=false;
-    },250);
+    },delay);
   }
 }
 
@@ -153,19 +217,17 @@ loop();
 function drawSimpleInventory(){
   const baseX = 20;
   const baseY = 20;
-
   ctx.save();
   ctx.globalAlpha=1;
-
-  // wood icon + count
   if(iconWood.complete) ctx.drawImage(iconWood, baseX, baseY, 48, 48);
   ctx.fillStyle="#fff";ctx.font="22px monospace";
   ctx.fillText(inventory.wood, baseX + 60, baseY + 30);
-
-  // stone icon + count
   if(iconStone.complete) ctx.drawImage(iconStone, baseX + 120, baseY, 48, 48);
   ctx.fillText(inventory.stone, baseX + 180, baseY + 30);
-
+  // Draw crafted tools
+  let offset=240;
+  if(inventory.axe){ if(iconAxe.complete) ctx.drawImage(iconAxe, baseX+offset, baseY, 48, 48); offset+=60; }
+  if(inventory.pickaxe){ if(iconPickaxe.complete) ctx.drawImage(iconPickaxe, baseX+offset, baseY, 48, 48); offset+=60; }
   ctx.restore();
 }
 </script>
