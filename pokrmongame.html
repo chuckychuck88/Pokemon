@@ -145,6 +145,7 @@ onkeydown=e=>{
 };
 onkeyup=e=>keys[e.key.toLowerCase()]=false;
 canvas.addEventListener("click",handleClick);
+canvas.addEventListener('touchstart',handleClick);
 
 // ====== Equip Keys ======
 function handleEquipKeys(key){
@@ -163,8 +164,9 @@ function handleEquipKeys(key){
 // ====== Click / Touch to Break / Pick Berries ======
 function handleClick(e){
   if(craftingOpen) return;
-  const mx = (e.offsetX !== undefined ? e.offsetX : e.touches[0].clientX) - canvas.width/2 + player.x;
-  const my = (e.offsetY !== undefined ? e.offsetY : e.touches[0].clientY) - canvas.height/2 + player.y;
+  const rect=canvas.getBoundingClientRect();
+  const mx = (e.clientX || e.touches[0].clientX) - rect.left - canvas.width/2 + player.x;
+  const my = (e.clientY || e.touches[0].clientY) - rect.top - canvas.height/2 + player.y;
 
   for(let i=berries.length-1;i>=0;i--){
     const b=berries[i];
@@ -209,8 +211,6 @@ function handleClick(e){
     },breakSpeed);
   }
 }
-canvas.addEventListener('touchstart',handleClick);
-canvas.addEventListener('touchmove',e=>{if(e.target===canvas) e.preventDefault();},{passive:false});
 
 // ====== Eat Berry ======
 function eatBerry(){
@@ -304,22 +304,37 @@ const joystickBase=document.getElementById('joystickBase');
 const joystickKnob=document.getElementById('joystickKnob');
 let joystick={active:false,dx:0,dy:0};
 
-function getTouchPos(touch){
+function getJoystickPos(x, y){
   const rect=joystickBase.getBoundingClientRect();
-  return {x: touch.clientX - rect.left - rect.width/2, y: touch.clientY - rect.top - rect.height/2};
+  return {x: x-rect.left-rect.width/2, y: y-rect.top-rect.height/2};
 }
 
-joystickBase.addEventListener('touchstart',e=>{joystick.active=true;e.preventDefault();},{passive:false});
-joystickBase.addEventListener('touchmove',e=>{
+joystickBase.addEventListener('pointerdown', e=>{
+  joystick.active=true;
+  e.target.setPointerCapture(e.pointerId);
+});
+
+joystickBase.addEventListener('pointermove', e=>{
   if(!joystick.active) return;
-  const pos=getTouchPos(e.touches[0]);
+  const pos=getJoystickPos(e.clientX,e.clientY);
   const dist=Math.min(Math.hypot(pos.x,pos.y),40);
   const angle=Math.atan2(pos.y,pos.x);
   joystick.dx=Math.cos(angle)*(dist/40);
   joystick.dy=Math.sin(angle)*(dist/40);
   joystickKnob.style.transform=`translate(${joystick.dx*40}px,${joystick.dy*40}px)`;
-},{passive:false});
-joystickBase.addEventListener('touchend',e=>{joystick.active=false;joystick.dx=0;joystick.dy=0;joystickKnob.style.transform='translate(0,0)';},{passive:false});
+});
+
+joystickBase.addEventListener('pointerup', e=>{
+  joystick.active=false;
+  joystick.dx=0; joystick.dy=0;
+  joystickKnob.style.transform='translate(0,0)';
+});
+joystickBase.addEventListener('pointercancel', e=>{
+  joystick.active=false;
+  joystick.dx=0; joystick.dy=0;
+  joystickKnob.style.transform='translate(0,0)';
+});
+
 function handleMobileMovement(){player.x+=joystick.dx*player.speed;player.y+=joystick.dy*player.speed;}
 
 // ====== Game Loop ======
@@ -379,10 +394,10 @@ const socket = io();
 let otherPlayers = {};
 socket.on('currentPlayers', (players) => { otherPlayers = players; });
 socket.on('newPlayer', (data) => { otherPlayers[data.id] = {x: data.x, y: data.y}; });
-socket.on('playerMoved', (data) => { if(otherPlayers[data.id]) otherPlayers[data.id].x = data.x; otherPlayers[data.id].y = data.y; });
+socket.on('playerMoved', (data) => { if(otherPlayers[data.id]) { otherPlayers[data.id].x = data.x; otherPlayers[data.id].y = data.y; }});
 socket.on('playerDisconnected', (id) => { delete otherPlayers[id]; });
-function sendPlayerPosition() { socket.emit('playerMove', { x: player.x, y: player.y }); }
-setInterval(sendPlayerPosition, 50);
+function sendPlayerPosition(){ socket.emit('playerMove',{x:player.x,y:player.y}); }
+setInterval(sendPlayerPosition,50);
 </script>
 </body>
 </html>
