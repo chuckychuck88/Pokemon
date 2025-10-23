@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pokémon Survival Minimal HUD</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden;background:#000;}
+  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;cursor:crosshair;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d",{alpha:true});
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+resize();addEventListener("resize",resize);
+
+// ====== Assets ======
+const playerImg=new Image();playerImg.src="assets/player.png";
+const stoneImg=new Image();stoneImg.src="assets/stone.png";
+const iconWood=new Image();iconWood.src="assets/item_wood.png";
+const iconStone=new Image();iconStone.src="assets/item_stone.png";
+
+// ====== Game Data ======
+const player={x:0,y:0,speed:4};
+let inventory={wood:0,stone:0};
+const trees=[],stones=[];
+
+// ====== Background Grass ======
+const grass=document.createElement("canvas");
+grass.width=64;grass.height=64;
+const gctx=grass.getContext("2d");
+gctx.fillStyle="#3aa63f";gctx.fillRect(0,0,64,64);
+gctx.fillStyle="#2e8b34";
+for(let i=0;i<80;i++)gctx.fillRect(Math.random()*64,Math.random()*64,3,3);
+const pattern=ctx.createPattern(grass,"repeat");
+
+// ====== Object Generation ======
+for(let i=0;i<40;i++)trees.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+for(let i=0;i<25;i++)stones.push({x:Math.random()*4000-2000,y:Math.random()*4000-2000,size:64,health:3,breaking:false});
+
+// ====== Controls ======
+const keys={};
+onkeydown=e=>keys[e.key.toLowerCase()]=true;
+onkeyup=e=>keys[e.key.toLowerCase()]=false;
+canvas.addEventListener("click",handleClick);
+
+// ====== Click to Break ======
+function handleClick(e){
+  const mx=e.offsetX-canvas.width/2+player.x;
+  const my=e.offsetY-canvas.height/2+player.y;
+  let target=null;
+  [...trees,...stones].forEach(obj=>{
+    const dist=Math.hypot(obj.x-mx,obj.y-my);
+    if(dist<60 && !target) target=obj;
+  });
+
+  if(target){
+    target.breaking=true;
+    setTimeout(()=>{
+      target.health--;
+      if(target.health<=0){
+        if(trees.includes(target)){
+          trees.splice(trees.indexOf(target),1);
+          const amt=Math.floor(Math.random()*2)+2;
+          inventory.wood+=amt;
+          popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
+        }else if(stones.includes(target)){
+          stones.splice(stones.indexOf(target),1);
+          const amt=Math.floor(Math.random()*2)+2;
+          inventory.stone+=amt;
+          popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
+        }
+      }
+      target.breaking=false;
+    },250);
+  }
+}
+
+// ====== Pop-up Text ======
+const popups=[];
+function popup(txt,x,y,color){
+  popups.push({txt,x,y,color,life:60});
+}
+
+// ====== Draw Tree ======
+function drawTree(g,x,y,size,breaking){
+  g.save();
+  if(breaking) g.translate(x+Math.random()*4-2,y+Math.random()*4-2);
+  else g.translate(x,y);
+  g.fillStyle="#5c3b1e";g.fillRect(size/2-5,size-18,10,18);
+  for(let i=0;i<3;i++){
+    const baseY=size/2-i*12;
+    const shade=i===0?"#4cd155":i===1?"#38b044":"#2a8b34";
+    g.fillStyle=shade;
+    g.beginPath();
+    g.moveTo(0,baseY);
+    g.lineTo(size,baseY);
+    g.lineTo(size/2,baseY-14);
+    g.closePath();g.fill();
+  }
+  g.restore();
+}
+
+// ====== Game Loop ======
+function loop(){
+  let dx=0,dy=0;
+  if(keys["w"]||keys["arrowup"])dy-=player.speed;
+  if(keys["s"]||keys["arrowdown"])dy+=player.speed;
+  if(keys["a"]||keys["arrowleft"])dx-=player.speed;
+  if(keys["d"]||keys["arrowright"])dx+=player.speed;
+  player.x+=dx;player.y+=dy;
+
+  ctx.fillStyle=pattern;
+  ctx.save();
+  ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
+  ctx.fillRect(player.x-canvas.width,player.y-canvas.height,canvas.width*2,canvas.height*2);
+  ctx.imageSmoothingEnabled=false;
+
+  for(const t of trees) drawTree(ctx,t.x-32,t.y-64,t.size,t.breaking);
+  for(const s of stones){
+    ctx.save();
+    if(s.breaking) ctx.translate(s.x+Math.random()*4-2,s.y+Math.random()*4-2);
+    else ctx.translate(s.x,s.y);
+    if(stoneImg.complete) ctx.drawImage(stoneImg,-s.size/2,-s.size/2,s.size,s.size);
+    ctx.restore();
+  }
+
+  if(playerImg.complete)
+    ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
+  else{
+    ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
+  }
+
+  for(let i=popups.length-1;i>=0;i--){
+    const p=popups[i];
+    ctx.fillStyle=p.color;
+    ctx.font="20px monospace";
+    ctx.fillText(p.txt,p.x,p.y-p.life/2);
+    p.life--; if(p.life<=0)popups.splice(i,1);
+  }
+
+  ctx.restore();
+
+  drawSimpleInventory();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ====== Draw Simple Inventory ======
+function drawSimpleInventory(){
+  const baseX = 20;
+  const baseY = 20;
+
+  ctx.save();
+  ctx.globalAlpha=1;
+
+  // wood icon + count
+  if(iconWood.complete) ctx.drawImage(iconWood, baseX, baseY, 48, 48);
+  ctx.fillStyle="#fff";ctx.font="22px monospace";
+  ctx.fillText(inventory.wood, baseX + 60, baseY + 30);
+
+  // stone icon + count
+  if(iconStone.complete) ctx.drawImage(iconStone, baseX + 120, baseY, 48, 48);
+  ctx.fillText(inventory.stone, baseX + 180, baseY + 30);
+
+  ctx.restore();
+}
+</script>
+</body>
+</html>
