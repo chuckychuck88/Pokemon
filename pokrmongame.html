@@ -71,7 +71,15 @@ const berryImg=new Image();berryImg.src="assets/berry.png";
 
 // ====== Player & Inventory ======
 const player={x:0,y:0,speed:4};
-let inventory={wood:0,stone:0,axe:false,pickaxe:false,berry:0};
+let inventory={
+  wood:0,
+  stone:0,
+  axe:false,
+  axeDurability:0,
+  pickaxe:false,
+  pickaxeDurability:0,
+  berry:0
+};
 let equipped=null;
 let health=100;
 let hunger=100;
@@ -175,20 +183,30 @@ function handleClick(e){
         if(trees.includes(target)){
           trees.splice(trees.indexOf(target),1);
           let amt=Math.floor(Math.random()*2)+2;
-          // Axe bonus
           if(equipped==="axe"){
             if(Math.random()<0.3) amt+=1;
             if(Math.random()<0.1) amt+=2;
+            inventory.axeDurability--;
+            if(inventory.axeDurability<=0){
+              inventory.axe=false;
+              equipped=null;
+              popup("Your Axe broke!",player.x,player.y,"#fff");
+            }
           }
           inventory.wood+=amt;
           popup("+ "+amt+" wood",target.x,target.y,"#d0a050");
         }else if(stones.includes(target)){
           stones.splice(stones.indexOf(target),1);
           let amt=Math.floor(Math.random()*2)+2;
-          // Pickaxe bonus
           if(equipped==="pickaxe"){
             if(Math.random()<0.3) amt+=1;
             if(Math.random()<0.1) amt+=2;
+            inventory.pickaxeDurability--;
+            if(inventory.pickaxeDurability<=0){
+              inventory.pickaxe=false;
+              equipped=null;
+              popup("Your Pickaxe broke!",player.x,player.y,"#fff");
+            }
           }
           inventory.stone+=amt;
           popup("+ "+amt+" stone",target.x,target.y,"#c0c0c0");
@@ -239,4 +257,111 @@ let craftingOpen=false;
 const craftingUI=document.getElementById("craftingUI");
 const craftList=document.getElementById("craftList");
 const recipes=[
-  {name:"Axe",requires:{wood:3,stone:2},gives:"
+  {name:"Axe",requires:{wood:3,stone:2},gives:"axe"},
+  {name:"Pickaxe",requires:{wood:2,stone:3},gives:"pickaxe"}
+];
+function toggleCrafting(){
+  craftingOpen=!craftingOpen;
+  craftingUI.style.display=craftingOpen?"block":"none";
+  if(craftingOpen) buildCraftingList();
+}
+function buildCraftingList(){
+  craftList.innerHTML="";
+  recipes.forEach(r=>{
+    const btn=document.createElement("button");
+    btn.textContent=`Craft ${r.name} (${r.requires.wood} wood, ${r.requires.stone} stone)`;
+    btn.onclick=()=>{
+      if(inventory.wood>=r.requires.wood&&inventory.stone>=r.requires.stone){
+        inventory.wood-=r.requires.wood;
+        inventory.stone-=r.requires.stone;
+        inventory[r.gives]=true;
+        if(r.gives==="axe") inventory.axeDurability=30;
+        if(r.gives==="pickaxe") inventory.pickaxeDurability=30;
+        popup(`Crafted ${r.name}!`,player.x,player.y,"#ffb000");
+        updateInventoryBox();
+        toggleCrafting();
+      }else alert("Not enough materials!");
+    };
+    craftList.appendChild(btn);
+  });
+}
+
+// ====== Inventory Text ======
+function updateInventoryBox(){
+  const invList=document.getElementById("invList");
+  const items=[];
+  items.push(`Wood (${inventory.wood})`);
+  items.push(`Stone (${inventory.stone})`);
+  if(inventory.axe) items.push(`Axe ${equipped==="axe"?"(Equipped)":"(Crafted)"} [${inventory.axeDurability}]`);
+  if(inventory.pickaxe) items.push(`Pickaxe ${equipped==="pickaxe"?"(Equipped)":"(Crafted)"} [${inventory.pickaxeDurability}]`);
+  if(inventory.berry) items.push(`Berry (${inventory.berry})`);
+  invList.innerHTML=items.join("<br>");
+}
+
+// ====== Hunger / Health Drain ======
+setInterval(()=>{
+  hunger=Math.max(0,hunger-0.05);
+  if(hunger<=0) health=Math.max(0,health-0.1);
+},100);
+
+// ====== Draw Bars ======
+function drawBars(){
+  const barW=150,barH=16;
+  const x=20,y=20;
+  ctx.fillStyle="#000";ctx.fillRect(x-2,y-2,barW+4,barH+4);
+  ctx.fillStyle="#a00";ctx.fillRect(x,y,barW*(health/100),barH);
+  ctx.fillStyle="#fff";ctx.font="14px monospace";
+  ctx.fillText("Health",x+40,y+13);
+  const hy=y+24;
+  ctx.fillStyle="#000";ctx.fillRect(x-2,hy-2,barW+4,barH+4);
+  ctx.fillStyle="#d9a441";ctx.fillRect(x,hy,barW*(hunger/100),barH);
+  ctx.fillStyle="#fff";ctx.fillText("Hunger",x+36,hy+13);
+}
+
+// ====== Game Loop ======
+function loop(){
+  if(!craftingOpen){
+    let dx=0,dy=0;
+    if(keys["w"]||keys["arrowup"])dy-=player.speed;
+    if(keys["s"]||keys["arrowdown"])dy+=player.speed;
+    if(keys["a"]||keys["arrowleft"])dx-=player.speed;
+    if(keys["d"]||keys["arrowright"])dx+=player.speed;
+    player.x+=dx;player.y+=dy;
+  }
+
+  spawnNearbyResources();
+
+  ctx.fillStyle=pattern;
+  ctx.save();
+  ctx.translate(canvas.width/2-player.x,canvas.height/2-player.y);
+  ctx.fillRect(player.x-canvas.width,player.y-canvas.height,canvas.width*2,canvas.height*2);
+  ctx.imageSmoothingEnabled=false;
+
+  for(const t of trees) drawTree(ctx,t.x-32,t.y-64,t.size,t.breaking);
+  for(const s of stones){
+    ctx.save();
+    if(s.breaking) ctx.translate(s.x+Math.random()*4-2,s.y+Math.random()*4-2);
+    else ctx.translate(s.x,s.y);
+    if(stoneImg.complete) ctx.drawImage(stoneImg,-s.size/2,-s.size/2,s.size,s.size);
+    ctx.restore();
+  }
+  for(const b of berries){
+    if(berryImg.complete)
+      ctx.drawImage(berryImg,b.x-b.size/2,b.y-b.size/2,b.size,b.size);
+    else{
+      ctx.fillStyle="red";
+      ctx.beginPath();ctx.arc(b.x,b.y,8,0,Math.PI*2);ctx.fill();
+    }
+  }
+  if(playerImg.complete)
+    ctx.drawImage(playerImg,player.x-32,player.y-32,64,64);
+  else{
+    ctx.fillStyle="yellow";ctx.fillRect(player.x-24,player.y-24,48,48);
+  }
+  for(let i=popups.length-1;i>=0;i--){
+    const p=popups[i];
+    ctx.fillStyle=p.color;
+    ctx.font="20px monospace";
+    ctx.fillText(p.txt,p.x,p.y-p.life/2);
+    p.life--;if(p.life<=0)popups.splice(i,1);
+ 
